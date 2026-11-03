@@ -1039,7 +1039,7 @@ function renderInspector() {
     h += `<div class="row"><label>Active</label><output id="trailRange">${trailRangeText()}</output></div>`;
     h += `<div class="hint">Drag the bar to move it, drag its ends to set where the trail starts and stops. Outside the range the fog fades out.</div>`;
     h += sel_('look.trail.palette', 'Palette', Tr.palette, [['iridescent', 'Oil slick'], ['pearl', 'Pearl'], ['spectral', 'Spectral'], ['aurora', 'Aurora']]);
-    h += rng('look.trail.length', 'Length', Tr.length, 0.8, 0.995, 0.005, '%') + rng('look.trail.intensity', 'Density', Tr.intensity, 0, 2, 0.01, '%');
+    h += rng('look.trail.length', 'Length', Tr.length, 0, 0.995, 0.005, '%') + rng('look.trail.intensity', 'Density', Tr.intensity, 0, 2, 0.01, '%');
     h += rng('look.trail.width', 'Trail width', Tr.width, 0.2, 3, 0.05, 'x') + rng('look.trail.sharp', 'Stays sharp for', Tr.sharp, 0.02, 2, 0.01, 's');
     h += rng('look.trail.haze', 'Haze', Tr.haze, 0, 2, 0.01, '%');
     h += rng('look.trail.sheen', 'Sheen', Tr.sheen, 0, 2, 0.01, '%') + rng('look.trail.disp', 'Dispersion', Tr.disp, 0, 2, 0.01, '%');
