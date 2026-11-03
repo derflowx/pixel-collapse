@@ -617,7 +617,6 @@ void main(){
   const SPL_FS = `#version 300 es
 precision highp float; in vec2 lp; in float len; in vec2 pr; uniform float rad; out vec4 o;
 void main(){
-  if (lp.x < 0. || (lp.x > len && pr.y < .5)) discard; // caps only at the newest end, so substeps join without bright knots
   float x = clamp(lp.x, 0., len); float r = length(vec2(lp.x-x, lp.y))/rad;
   float dist = r*rad;
   float f = (1. - smoothstep(rad - .6, rad + .6, dist)) * pr.x;
@@ -742,11 +741,11 @@ void main(){
       if (n > 0) {
         gl.useProgram(P.spl.p); gl.bindFramebuffer(gl.FRAMEBUFFER, A.f); gl.viewport(0, 0, A.w, A.h);
         gl.uniform2f(P.spl.u.res, A.w, A.h); gl.uniform1f(P.spl.u.rad, rad);
-        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.blendEquation(gl.MAX); // overlapping caps/joints never double up
         gl.bindVertexArray(spVao); gl.bindBuffer(gl.ARRAY_BUFFER, iBuf);
         gl.bufferData(gl.ARRAY_BUFFER, spl.subarray(0, n * 6), gl.DYNAMIC_DRAW);
         gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
-        gl.disable(gl.BLEND);
+        gl.disable(gl.BLEND); gl.blendEquation(gl.FUNC_ADD);
       }
     }
     pass(P.down, L1, A.t, u => gl.uniform2f(u.tx, 1.5 / A.w, 1.5 / A.h));
@@ -820,7 +819,7 @@ function draw(t, delta = 0) {
         if ((u <= 0 || u >= 1) && (uP <= 0 || uP >= 1)) continue;
         if (cur[0] === prev[0] && cur[1] === prev[1]) continue;
         const env = Math.sin(Math.PI * clamp01(Math.min(Math.max(u, uP), 1)));
-        const val = amt * 0.3 * (0.5 + 0.5 * env);
+        const val = amt * 0.5 * (0.5 + 0.5 * env);
         // adaptive substeps: trace the real eased, axis-split path between last frame and now
         const distPx = Math.hypot(cur[0] - prev[0], cur[1] - prev[1]) * p / 2;
         const N = Math.min(24, Math.max(1, Math.ceil(distPx / Math.max(1, splatRad * 0.75))));
