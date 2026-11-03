@@ -11,47 +11,74 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: full-bleed black stage, narrow instrument rail on the right (stacks below on phones). Single dark look by choice. */
+/* Layout: black stage + inspector rail on top, full-width timeline strip below. Single dark look by choice. */
 :root {
   --bg: #000;
   --panel: #0b0b0c;
-  --line: #222326;
+  --raise: #16171a;
+  --raise2: #24262c;
+  --line: #24252a;
   --fg: #f2f2f2;
   --muted: #8a8b90;
   --accent: #ffffff;
+  --hover: #ffffff26;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: dark;
 }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 12px; }
-.app { height: 100%; display: grid; grid-template-columns: 1fr 290px; }
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr) auto; }
 .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-.hud { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: 14px; color: var(--muted); font-size: 11px; letter-spacing: .04em; pointer-events: none; }
-.rail { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding-block: 16px 24px; padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hud { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); top: 12px; color: var(--muted); font-size: 11px; letter-spacing: .04em; pointer-events: none; }
+.insp { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding-block: 14px 24px; padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.tlwrap { grid-column: 1 / -1; background: var(--panel); border-top: 1px solid var(--line); padding-block: 8px 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tlbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tlbar .sep { width: 1px; height: 20px; background: var(--line); margin-inline: 4px; }
+.tlbar .lbl { color: var(--muted); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 13ch; }
+.tlscroll { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line); background: var(--bg); }
+#track { position: relative; height: 100px; touch-action: none; user-select: none; -webkit-user-select: none; min-width: 100%; }
+.ruler { position: absolute; left: 0; right: 0; top: 0; height: 20px; border-bottom: 1px solid var(--line); cursor: text; }
+.tick { position: absolute; top: 0; height: 20px; border-left: 1px solid var(--line); font-size: 10px; color: var(--muted); padding-left: 3px; line-height: 20px; pointer-events: none; }
+.tick.minor { height: 5px; top: 15px; }
+.blk { position: absolute; top: 28px; height: 62px; box-sizing: border-box; border: 1px solid var(--line); overflow: hidden; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; }
+.blk .bt { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
+.blk .bs { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blk .bd { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; margin-top: auto; }
+.clip { background: var(--raise); cursor: grab; }
+.trans { background: repeating-linear-gradient(135deg, var(--raise) 0 5px, var(--bg) 5px 10px); cursor: pointer; align-items: center; justify-content: flex-end; }
+.off { background: repeating-linear-gradient(45deg, var(--bg) 0 4px, var(--raise) 4px 8px); cursor: grab; align-items: center; padding: 5px 2px; }
+.off .bt { writing-mode: vertical-rl; transform: rotate(180deg); color: var(--muted); }
+.blk.sel { border-color: var(--accent); }
+.clip.sel { background: var(--raise2); }
+.blk.dragging { opacity: .4; }
+.grip { position: absolute; top: 0; right: 0; width: 9px; height: 100%; cursor: ew-resize; }
+.grip:hover, .grip.on { background: var(--hover); }
+.phead { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); pointer-events: none; }
+.drop { position: absolute; top: 24px; bottom: 4px; width: 2px; background: var(--accent); pointer-events: none; }
 h1 { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; margin: 0; }
 .group { display: flex; flex-direction: column; gap: 10px; }
-.group > .label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-textarea { width: 100%; box-sizing: border-box; min-height: 58px; resize: vertical; background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 14px/1.3 var(--mono); padding: 8px; }
-textarea:focus, select:focus, button:focus-visible, input:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.group > .label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+textarea, input[type=text], input[type=number] { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 13px/1.3 var(--mono); padding: 7px 8px; }
+textarea { min-height: 64px; resize: vertical; }
+textarea:focus, input:focus-visible, select:focus, button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; }
-.row label { color: var(--fg); }
-.row output { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right; }
+.row output { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 5ch; text-align: right; }
 .row input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 0; }
-select { background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 12px var(--mono); padding: 4px 6px; }
+select { background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 12px var(--mono); padding: 4px 6px; max-width: 170px; }
 .check { display: flex; gap: 8px; align-items: center; cursor: pointer; }
 .check input { accent-color: var(--accent); margin: 0; }
-.transport { display: flex; gap: 6px; flex-wrap: wrap; }
-button, .btn { background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 12px var(--mono); padding: 6px 10px; cursor: pointer; }
+.btns { display: flex; gap: 6px; flex-wrap: wrap; }
+button { background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 12px var(--mono); padding: 5px 9px; cursor: pointer; }
 button:hover { border-color: var(--muted); }
-button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
-.scrub { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
-.scrub input { width: 100%; accent-color: var(--accent); margin: 0; }
-.scrub output { color: var(--muted); font-variant-numeric: tabular-nums; }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; min-width: 7ch; }
 .hint { color: var(--muted); font-size: 10px; line-height: 1.5; }
-@media (max-width: 720px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; min-height: 100%; }
-  .rail { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+.status { color: var(--fg); font-size: 11px; min-height: 1.4em; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 46vh auto auto; height: auto; min-height: 100%; }
+  .tlwrap { grid-row: 2; }
+  .insp { grid-row: 3; border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
 }
 </style>
 
@@ -60,103 +87,143 @@ button.primary { background: var(--accent); color: var(--bg); border-color: var(
     <canvas id="cv"></canvas>
     <div class="hud" id="hud"></div>
   </div>
-  <aside class="rail">
-    <h1>Pixel Collapse</h1>
-
-    <div class="group">
-      <div class="transport">
-        <button class="primary" id="play">Pause</button>
-        <button id="restart">Restart</button>
-        <button id="reseed">New seed</button>
-      </div>
-      <div class="scrub"><input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Timeline"><output id="tout">0.00s</output></div>
-      <div class="hint">Space play/pause · R restart · drag the timeline to scrub</div>
+  <aside class="insp" id="insp"></aside>
+  <section class="tlwrap">
+    <div class="tlbar">
+      <button class="primary" id="play">Pause</button>
+      <button id="restart">Restart</button>
+      <span class="time" id="tout">0.00 / 0.00s</span>
+      <label class="check"><input type="checkbox" id="loop" checked> Loop</label>
+      <span class="sep"></span>
+      <span class="lbl">Add</span>
+      <button data-add="text">Text</button>
+      <button data-add="cipher">Cipher</button>
+      <button data-add="image">Image</button>
+      <button data-add="squares">Squares</button>
+      <button data-add="bigsquare">Big square</button>
+      <span class="sep"></span>
+      <label class="check" for="zoom">Zoom</label>
+      <input type="range" id="zoom" min="20" max="300" value="80" style="width:110px;accent-color:var(--accent)">
+      <button id="fit">Fit</button>
     </div>
-
-    <div class="group">
-      <div class="label">Text</div>
-      <textarea id="text" spellcheck="false">HELLO WORLD</textarea>
-      <div class="hint">8×16 bitmap glyphs (GNU Unifont, Latin-1). Line breaks allowed. Your text is remembered in this browser.</div>
-    </div>
-
-    <div class="group">
-      <div class="label">Global</div>
-      <div class="row"><label for="speed">Speed</label><output id="speedO"></output><input type="range" id="speed" min="0.1" max="3" step="0.05" value="1"></div>
-      <div class="row"><label for="hold">Holds</label><output id="holdO"></output><input type="range" id="hold" min="0" max="3" step="0.1" value="0.8"></div>
-      <div class="row"><label for="axis">Axis order</label><select id="axis"><option value="x">X then Y</option><option value="y">Y then X</option><option value="alt">Alternate</option><option value="rnd">Random</option></select></div>
-      <div class="row"><label for="overlap">Axis overlap</label><output id="overlapO"></output><input type="range" id="overlap" min="0" max="1" step="0.05" value="0"></div>
-      <div class="row"><label for="order">Stagger order</label><select id="order"><option value="rnd">Random</option><option value="sweep">Left → right</option><option value="center">Center out</option><option value="edge">Edges in</option></select></div>
-      <div class="row"><label for="ease">Easing</label><select id="ease"><option value="cubic">Cubic in-out</option><option value="expo">Expo in-out</option><option value="linear">Linear</option></select></div>
-      <div class="row"><label for="loop">Playback</label><select id="loop"><option value="pingpong">Ping-pong</option><option value="loop">Loop</option><option value="once">Once</option></select></div>
-      <label class="check"><input type="checkbox" id="snap"> Snap to pixel grid</label>
-      <label class="check"><input type="checkbox" id="seams"> Show pixel seams</label>
-    </div>
-
-    <div class="group">
-      <div class="label">Level 0 · image → text</div>
-      <div class="transport">
-        <label class="btn" for="file">Load image</label>
-        <input type="file" id="file" accept="image/*" hidden>
-        <button id="sample">Sample</button>
-        <button id="noimg">No image</button>
-      </div>
-      <div class="hint" id="imgName">Sample star loaded. Drop an image on the canvas or use Load image.</div>
-      <div class="row"><label for="iw">Image width</label><output id="iwO"></output><input type="range" id="iw" min="8" max="160" step="1" value="32"></div>
-      <div class="row"><label for="thr">Threshold</label><output id="thrO"></output><input type="range" id="thr" min="1" max="254" step="1" value="128"></div>
-      <label class="check"><input type="checkbox" id="inv"> Invert (black shapes on white)</label>
-      <div class="row"><label for="d0">Pixel move time</label><output id="d0O"></output><input type="range" id="d0" min="0.1" max="3" step="0.05" value="0.8"></div>
-      <div class="row"><label for="s0">Pixel stagger</label><output id="s0O"></output><input type="range" id="s0" min="0" max="3" step="0.05" value="1"></div>
-    </div>
-
-    <div class="group">
-      <div class="label">Level 1 · pixels → letter squares</div>
-      <div class="row"><label for="l1">Square size</label><select id="l1"><option value="uniform">Uniform (duplicate to fill)</option><option value="natural">Natural ⌊√N⌋</option></select></div>
-      <div class="row"><label for="align">Square alignment</label><select id="align"><option value="bottom">Baseline</option><option value="center">Center</option><option value="top">Top</option></select></div>
-      <div class="row"><label for="d1">Pixel move time</label><output id="d1O"></output><input type="range" id="d1" min="0.1" max="3" step="0.05" value="0.7"></div>
-      <div class="row"><label for="s1">Pixel stagger</label><output id="s1O"></output><input type="range" id="s1" min="0" max="3" step="0.05" value="0.9"></div>
-      <div class="row"><label for="c1">Letter cascade</label><output id="c1O"></output><input type="range" id="c1" min="0" max="3" step="0.05" value="0.4"></div>
-    </div>
-
-    <div class="group">
-      <div class="label">Level 2 · squares → center square</div>
-      <div class="row"><label for="l2">Final grid</label><select id="l2"><option value="up">Round up (duplicate to fill)</option><option value="down">Round down (extras overlap)</option></select></div>
-      <div class="row"><label for="assign">Assignment</label><select id="assign"><option value="nearest">Center out</option><option value="grid">Grid packing</option></select></div>
-      <div class="row"><label for="d2">Square move time</label><output id="d2O"></output><input type="range" id="d2" min="0.1" max="3" step="0.05" value="0.9"></div>
-      <div class="row"><label for="s2">Square stagger</label><output id="s2O"></output><input type="range" id="s2" min="0" max="3" step="0.05" value="0.8"></div>
-      <div class="row"><label for="g2">Gap between squares</label><output id="g2O"></output><input type="range" id="g2" min="0" max="4" step="1" value="0"></div>
-    </div>
-  </aside>
+    <div class="tlscroll" id="tlscroll"><div id="track"></div></div>
+    <div class="hint">Click a block to edit it · drag a block to reorder · drag its right edge to change duration · click the ruler to scrub · Space play/pause · Delete removes the selected block</div>
+  </section>
 </div>
+<input type="file" id="imgFile" accept="image/*" hidden>
+<input type="file" id="sceneFile" accept=".json,application/json" hidden>
 
 <script>
-// GNU Unifont 8x16, ASCII 32..126, 16 bytes per glyph as hex (row-major, MSB = left pixel)
+// GNU Unifont 8x16 bitmaps, 16 bytes per glyph as hex (row-major, MSB = left pixel)
+const FONT = "000000000000000000000000000000000000000008080808080808000808000000002222222200000000000000000000000000001212127e24247e484848000000000000083e4948380e09493e08000000000000314a4a340808162929460000000000001c222214182945424639000000000808080800000000000000000000000000040808101010101010080804000000002010100808080808081010200000000000000008492a1c2a49080000000000000000000808087f080808000000000000000000000000000000180808100000000000000000003c000000000000000000000000000000000000181800000000000002020408081010204040000000000000182442464a52624224180000000000000818280808080808083e0000000000003c4242020c102040407e0000000000003c4242021c020242423c000000000000040c142444447e0404040000000000007e4040407c020202423c0000000000001c2040407c424242423c0000000000007e0202040404080808080000000000003c4242423c424242423c0000000000003c4242423e02020204380000000000000000181800000018180000000000000000001818000000180808100000000000000204081020100804020000000000000000007e0000007e0000000000000000004020100804081020400000000000003c4242020408080008080000000000001c224a565252524e201e00000000000018242442427e424242420000000000007c4242427c424242427c0000000000003c42424040404042423c000000000000784442424242424244780000000000007e4040407c404040407e0000000000007e4040407c40404040400000000000003c424240404e4242463a000000000000424242427e42424242420000000000003e08080808080808083e0000000000001f040404040404444438000000000000424448506060504844420000000000004040404040404040407e000000000000424266665a5a4242424200000000000042626252524a4a4646420000000000003c42424242424242423c0000000000007c4242427c40404040400000000000003c4242424242425a663c0300000000007c4242427c48444442420000000000003c424240300c0242423c0000000000007f0808080808080808080000000000004242424242424242423c00000000000041414122222214140808000000000000424242425a5a6666424200000000000042422424181824244242000000000000414122221408080808080000000000007e02020408102040407e00000000000e080808080808080808080e0000000000404020101008080402020000000000701010101010101010101070000000182442000000000000000000000000000000000000000000000000007f00002010080000000000000000000000000000000000003c42023e4242463a00000000004040405c6242424242625c00000000000000003c4240404040423c00000000000202023a4642424242463a00000000000000003c42427e4040423c00000000000c1010107c10101010101000000000000000023a44444438203c42423c0000004040405c624242424242420000000000080800180808080808083e00000000000404000c04040404040404483000000040404044485060504844420000000000180808080808080808083e0000000000000000764949494949494900000000000000005c6242424242424200000000000000003c4242424242423c00000000000000005c6242424242625c40400000000000003a4642424242463a02020000000000005c6242404040404000000000000000003c4240300c02423c0000000000001010107c10101010100c0000000000000000424242424242463a00000000000000004242422424241818000000000000000041494949494949360000000000000000424224181824424200000000000000004242424242261a02023c0000000000007e0204081020407e00000000000c10100808102010080810100c000008080808080808080808080808080000003008081010080408101008083000000031494600000000000000000000";   // ASCII 32..126
 const FONT2 = "00000000000000000000000000000000000000000808000808080808080800000000000008083e494848493e08080000000000000e1010107c1010103e6100000000000000423c244242243c4200000000000000412214087f087f080808000000000000080808080000080808080000000000003c42403c42423c02423c000024240000000000000000000000000000000000003c4299a5a1a1a599423c000000001c021e221e003e0000000000000000000000001212242448242412120000000000000000000000007e020202000000000000000000000000000000000000000000003c42b9a5a5b9a9a5423c000000007e0000000000000000000000000000000000182424180000000000000000000000000808087f080808007f0000000000003844041820407c000000000000000000384404380444380000000000000004081000000000000000000000000000000000000042424242424266594080000000003f7a7a7a3a0a0a0a0a0a0a0000000000000000001818000000000000000000000000000000000000000008300000001030501010107c00000000000000001c2222221c003e000000000000000000000000484824241224244848000000000000226224282812162a4e420000000000002262242828141a22444e000000000000621224186812162a4e420000000000001010001010204042423c0000300c000018242442427e4242424200000c30000018242442427e4242424200001824000018242442427e424242420000324c000018242442427e4242424200002424000018242442427e4242424200001824180018242442427e424242420000000000001f2848487f484848484f0000000000003c42424040404042423c0830300c00007e4040407c404040407e00000c3000007e4040407c404040407e0000182400007e4040407c404040407e0000242400007e4040407c404040407e0000180600003e08080808080808083e00000c3000003e08080808080808083e0000182400003e08080808080808083e0000242400003e08080808080808083e00000000000078444242f242424244780000324c000042626252524a4a4646420000300c00003c42424242424242423c00000c3000003c42424242424242423c0000182400003c42424242424242423c0000324c00003c42424242424242423c0000242400003c42424242424242423c000000000000000000422418244200000000000000023a44464a4a525262225c4000300c00004242424242424242423c00000c3000004242424242424242423c0000182400004242424242424242423c0000242400004242424242424242423c00000c30000041412222140808080808000000000040407844424244784040400000000000003844444858444242524c00000000300c00003c42023e4242463a000000000c3000003c42023e4242463a00000000182400003c42023e4242463a00000000324c00003c42023e4242463a00000000242400003c42023e4242463a00000018241800003c42023e4242463a00000000000000003e49093f4848493e00000000000000003c4240404040423c08300000300c00003c42427e4040423c000000000c3000003c42427e4040423c00000000182400003c42427e4040423c00000000242400003c42427e4040423c00000000300c0000180808080808083e000000000c300000180808080808083e0000000018240000180808080808083e0000000024240000180808080808083e00000000320c1422023e42424242423c00000000324c00005c6242424242424200000000300c00003c4242424242423c000000000c3000003c4242424242423c00000000182400003c4242424242423c00000000324c00003c4242424242423c00000000242400003c4242424242423c00000000000000001800007e0000180000000000000000023c464a4a5252623c40000000300c0000424242424242463a000000000c300000424242424242463a0000000018240000424242424242463a0000000024240000424242424242463a000000000c3000004242424242261a02023c0000004040405c6242424242625c40400000242400004242424242261a02023c"; // Latin-1 160..255
-const FONT = "000000000000000000000000000000000000000008080808080808000808000000002222222200000000000000000000000000001212127e24247e484848000000000000083e4948380e09493e08000000000000314a4a340808162929460000000000001c222214182945424639000000000808080800000000000000000000000000040808101010101010080804000000002010100808080808081010200000000000000008492a1c2a49080000000000000000000808087f080808000000000000000000000000000000180808100000000000000000003c000000000000000000000000000000000000181800000000000002020408081010204040000000000000182442464a52624224180000000000000818280808080808083e0000000000003c4242020c102040407e0000000000003c4242021c020242423c000000000000040c142444447e0404040000000000007e4040407c020202423c0000000000001c2040407c424242423c0000000000007e0202040404080808080000000000003c4242423c424242423c0000000000003c4242423e02020204380000000000000000181800000018180000000000000000001818000000180808100000000000000204081020100804020000000000000000007e0000007e0000000000000000004020100804081020400000000000003c4242020408080008080000000000001c224a565252524e201e00000000000018242442427e424242420000000000007c4242427c424242427c0000000000003c42424040404042423c000000000000784442424242424244780000000000007e4040407c404040407e0000000000007e4040407c40404040400000000000003c424240404e4242463a000000000000424242427e42424242420000000000003e08080808080808083e0000000000001f040404040404444438000000000000424448506060504844420000000000004040404040404040407e000000000000424266665a5a4242424200000000000042626252524a4a4646420000000000003c42424242424242423c0000000000007c4242427c40404040400000000000003c4242424242425a663c0300000000007c4242427c48444442420000000000003c424240300c0242423c0000000000007f0808080808080808080000000000004242424242424242423c00000000000041414122222214140808000000000000424242425a5a6666424200000000000042422424181824244242000000000000414122221408080808080000000000007e02020408102040407e00000000000e080808080808080808080e0000000000404020101008080402020000000000701010101010101010101070000000182442000000000000000000000000000000000000000000000000007f00002010080000000000000000000000000000000000003c42023e4242463a00000000004040405c6242424242625c00000000000000003c4240404040423c00000000000202023a4642424242463a00000000000000003c42427e4040423c00000000000c1010107c10101010101000000000000000023a44444438203c42423c0000004040405c624242424242420000000000080800180808080808083e00000000000404000c04040404040404483000000040404044485060504844420000000000180808080808080808083e0000000000000000764949494949494900000000000000005c6242424242424200000000000000003c4242424242423c00000000000000005c6242424242625c40400000000000003a4642424242463a02020000000000005c6242404040404000000000000000003c4240300c02423c0000000000001010107c10101010100c0000000000000000424242424242463a00000000000000004242422424241818000000000000000041494949494949360000000000000000424224181824424200000000000000004242424242261a02023c0000000000007e0204081020407e00000000000c10100808102010080810100c000008080808080808080808080808080000003008081010080408101008083000000031494600000000000000000000";
 
 const $ = id => document.getElementById(id);
-const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage'), track = $('track');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function glyphRows(ch) {
   let c = ch.charCodeAt(0), src = FONT, o;
   if (c >= 160 && c <= 255) { src = FONT2; o = (c - 160) * 32; }
-  else { if (c < 32 || c > 126) c = 63; o = (c - 32) * 32; } // unsupported → '?'
+  else { if (c < 32 || c > 126) c = 63; o = (c - 32) * 32; }
   const rows = [];
   for (let y = 0; y < 16; y++) rows.push(parseInt(src.substr(o + y * 2, 2), 16));
   return rows;
 }
-
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i += Math.max(1, s.length >> 12)) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h ^ s.length) >>> 0; }
 const EASE = {
   cubic: u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2,
   expo: u => u <= 0 ? 0 : u >= 1 ? 1 : u < .5 ? Math.pow(2, 20 * u - 10) / 2 : (2 - Math.pow(2, -20 * u + 10)) / 2,
+  quad: u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2,
   linear: u => u,
 };
 const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const num = (v, d, lo, hi) => { v = parseFloat(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
 
-// Pack items (with .x,.y) into an s×s grid preserving spatial order:
-// sort by y, split into s row-bands, sort each band by x, spread across s columns.
-// Extra items (N > s²) land on already occupied slots.
+// ================= scene model =================
+const TYPES = { text: 'Text', cipher: 'Cipher', image: 'Image', squares: 'Squares', bigsquare: 'Big square' };
+let uidN = 0;
+const newId = () => 'c' + Date.now().toString(36) + (uidN++).toString(36);
+const defTrans = (o = {}) => Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, ease: 'cubic', match: 'auto', seed: 1 }, o);
+const defImage = (o = {}) => Object.assign({ src: 'sample', width: 32, threshold: 128, invert: false }, o);
+function makeClip(type, o = {}) {
+  const c = { id: newId(), type, enabled: true, hold: 1.5 };
+  if (type === 'text') c.text = 'NEW TEXT';
+  if (type === 'cipher') Object.assign(c, { text: '', mode: 'scramble', shift: 3, seed: 7, flicker: 8 });
+  Object.assign(c, o);
+  c.trans = defTrans(o.trans || {});
+  if (type === 'image') c.image = defImage(o.image || {});
+  return c;
+}
+const defLook = () => ({ snap: false, seams: false, uniform: true, align: 'bottom', roundUp: true, assign: 'center', gap: 0 });
+function defaultScene() {
+  return {
+    version: 1, name: 'Example scene', look: defLook(),
+    clips: [
+      makeClip('image', { hold: 1.2, trans: { dur: 2.2 } }),
+      makeClip('text', { text: 'HELLO WORLD', hold: 1.8, trans: { dur: 1.2, order: 'sweep', stagger: 0.6 } }),
+      makeClip('cipher', { hold: 1.6, trans: { dur: 2, stagger: 0.5 } }),
+      makeClip('text', { text: 'PIXEL\nCOLLAPSE', hold: 1.6, trans: { dur: 2.2 } }),
+      makeClip('squares', { hold: 0.8, trans: { dur: 2.4, stagger: 0.6 } }),
+      makeClip('bigsquare', { hold: 2 }),
+    ],
+  };
+}
+function normalizeScene(o) {
+  if (!o || typeof o !== 'object' || !Array.isArray(o.clips)) throw new Error('This file is not a Pixel Collapse scene (no clips list found).');
+  const seen = new Set();
+  const clips = o.clips.filter(c => c && TYPES[c.type]).map(c => {
+    const base = makeClip(c.type);
+    const out = Object.assign(base, c);
+    if (typeof out.id !== 'string' || seen.has(out.id)) out.id = newId();
+    seen.add(out.id);
+    out.enabled = out.enabled !== false;
+    out.hold = num(out.hold, 1.5, 0, 120);
+    out.trans = defTrans(c.trans || {});
+    out.trans.dur = num(out.trans.dur, 1.6, 0.05, 120);
+    if (c.type === 'image') out.image = defImage(c.image || {});
+    if (c.type === 'text' || c.type === 'cipher') out.text = String(out.text ?? '');
+    return out;
+  });
+  if (!clips.length) throw new Error('The scene has no usable blocks.');
+  return { version: 1, name: String(o.name || 'Untitled scene').slice(0, 80), look: Object.assign(defLook(), o.look || {}), clips };
+}
+
+const STORE = 'pc-scene-v1';
+let S;
+try { const raw = localStorage.getItem(STORE); S = raw ? normalizeScene(JSON.parse(raw)) : null; } catch (e) { S = null; }
+if (!S) S = defaultScene();
+let sel = null; // {kind:'clip'|'trans', id}
+const clipIndex = id => S.clips.findIndex(c => c.id === id);
+
+// ================= text / cipher sources =================
+const CIPH = '!#$%&*+<=>?@0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function encipher(src, c, tick) {
+  if (c.mode === 'hex') return src.split('\n').map(l => [...l].map(ch => (ch.charCodeAt(0) & 255).toString(16).toUpperCase().padStart(2, '0')).join('')).join('\n');
+  if (c.mode === 'shift') {
+    const k = Math.round(c.shift) + tick;
+    const rot = (code, base, n) => String.fromCharCode(base + (((code - base + k) % n) + n) % n);
+    return [...src].map(ch => { const x = ch.charCodeAt(0); return x >= 65 && x <= 90 ? rot(x, 65, 26) : x >= 97 && x <= 122 ? rot(x, 97, 26) : x >= 48 && x <= 57 ? rot(x, 48, 10) : ch; }).join('');
+  }
+  const r = mulberry32((c.seed | 0) * 7919 + tick * 104729 + 1);
+  return [...src].map(ch => ch === ' ' || ch === '\n' ? ch : CIPH[Math.floor(r() * CIPH.length)]).join('');
+}
+function nearestText(i, types) {
+  for (let k = i - 1; k >= 0; k--) { const d = S.clips[k]; if (d.enabled && types.includes(d.type)) return k; }
+  for (let k = i + 1; k < S.clips.length; k++) { const d = S.clips[k]; if (d.enabled && types.includes(d.type)) return k; }
+  return -1;
+}
+function cipherBase(i) { const c = S.clips[i]; if (c.text) return c.text; const k = nearestText(i, ['text']); return k >= 0 ? S.clips[k].text : 'TEXT'; }
+function clipString(i, tick = 0) {
+  const c = S.clips[i];
+  if (c.type === 'text') return c.text;
+  if (c.type === 'cipher') return encipher(cipherBase(i), c, tick);
+  const k = nearestText(i, ['text', 'cipher']);
+  return k >= 0 ? clipString(k, 0) : '';
+}
+
+// ================= grid helpers =================
 function packGrid(items, s) {
   const N = items.length;
   const byY = items.slice().sort((a, b) => a.y - b.y || a.x - b.x);
@@ -166,9 +233,6 @@ function packGrid(items, s) {
     band.forEach((it, j) => { it.col = Math.floor(j * s / k); it.row = r; });
   }
 }
-
-// After packGrid: fill every empty slot with a clone of the item in the nearest occupied slot.
-// Clones start where their source starts, so they appear to split off from it.
 function fillEmpty(items, s, makeClone) {
   const occ = new Map();
   items.forEach(it => { const k = it.row * s + it.col; if (!occ.has(k)) occ.set(k, it); });
@@ -184,327 +248,702 @@ function fillEmpty(items, s, makeClone) {
   return clones;
 }
 
-// Turn a list of items into 0..1 ranks according to the stagger order.
-function rankItems(items, mode, rand, cx, cy) {
-  const n = items.length;
-  if (n <= 1) { items.forEach(it => it.rank = 0); return; }
-  let key;
-  if (mode === 'rnd') key = () => rand();
-  else if (mode === 'sweep') key = it => it.x + it.y * 0.001;
-  else if (mode === 'center') key = it => Math.hypot(it.x - cx, it.y - cy);
-  else key = it => -Math.hypot(it.x - cx, it.y - cy);
-  const keyed = items.map(it => ({ it, k: key(it) })).sort((a, b) => a.k - b.k);
-  keyed.forEach((e, i) => e.it.rank = i / (n - 1));
-}
+// ================= layouts (point sets) =================
+const LC = new Map();
+function memo(key, fn) { if (LC.has(key)) return LC.get(key); const v = fn(); v.key = key; LC.set(key, v); if (LC.size > 400) LC.delete(LC.keys().next().value); return v; }
+const lookKey = () => JSON.stringify(S.look);
 
-let P = {}, scene = null, seed = 1337;
-
-function readParams() {
-  const num = id => parseFloat($(id).value);
-  P = {
-    text: $('text').value, speed: num('speed'), hold: num('hold'),
-    axis: $('axis').value, overlap: num('overlap'), order: $('order').value,
-    ease: $('ease').value, align: $('align').value, l1: $('l1').value, l2: $('l2').value, assign: $('assign').value, loop: $('loop').value, snap: $('snap').checked, seams: $('seams').checked,
-    d1: num('d1'), s1: num('s1'), c1: num('c1'), d2: num('d2'), s2: num('s2'), g2: num('g2'),
-    iw: num('iw'), thr: num('thr'), inv: $('inv').checked, d0: num('d0'), s0: num('s0'),
-  };
-  const fmt = { speed: v => v.toFixed(2) + '×', g2: v => v + ' px', iw: v => v + ' px', thr: v => String(v) };
-  ['speed', 'hold', 'overlap', 'd1', 's1', 'c1', 'd2', 's2', 'g2', 'iw', 'thr', 'd0', 's0'].forEach(id => {
-    const v = P[id]; $(id + 'O').textContent = fmt[id] ? fmt[id](v) : id === 'overlap' ? Math.round(v * 100) + '%' : v.toFixed(2) + 's';
-  });
-}
-
-function axisFor(i, rand) {
-  if (P.axis === 'x') return 0;
-  if (P.axis === 'y') return 1;
-  if (P.axis === 'alt') return i % 2;
-  return rand() < .5 ? 0 : 1;
-}
-
-function build() {
-  const rand = mulberry32(seed);
-  const lines = P.text.replace(/\t/g, '  ').split('\n');
-  const rows = lines.length, cols = Math.max(1, ...lines.map(l => l.length));
-  const letters = [];
-  const top = -Math.round(rows * 16 / 2);
-  lines.forEach((line, li) => {
-    const left = -Math.round(line.length * 8 / 2);
-    [...line].forEach((ch, ci) => {
-      const g = glyphRows(ch), px = [];
-      for (let y = 0; y < 16; y++) for (let x = 0; x < 8; x++)
-        if (g[y] & (128 >> x)) px.push({ x: left + ci * 8 + x, y: top + li * 16 + y });
-      if (px.length) letters.push({ ch, px, line: li });
+function layoutText(str) {
+  return memo('T' + str, () => {
+    const lines = str.replace(/\t/g, '  ').split('\n').map(l => [...l]);
+    const rows = lines.length, cols = Math.max(1, ...lines.map(l => l.length));
+    const top = -Math.round(rows * 16 / 2), pts = [], groups = [];
+    lines.forEach((line, li) => {
+      const left = -Math.round(line.length * 8 / 2);
+      line.forEach((ch, ci) => {
+        const g = glyphRows(ch), i0 = pts.length;
+        for (let y = 0; y < 16; y++) for (let x = 0; x < 8; x++)
+          if (g[y] & (128 >> x)) pts.push({ x: left + ci * 8 + x, y: top + li * 16 + y, g: groups.length });
+        if (pts.length > i0) groups.push({ line: li, col: ci, i0, i1: pts.length });
+      });
     });
+    return { kind: 'text', str, pts, groups, w: cols * 8, h: rows * 16, sig: lines.map(l => l.length).join(',') };
   });
+}
 
-  // Level 1: each letter → s×s square around its pixel centroid
-  let maxS = 1, minS = 99;
-  letters.forEach(L => {
-    const N = L.px.length;
-    let mx = 0, my = 0; L.px.forEach(p => { mx += p.x + .5; my += p.y + .5; }); mx /= N; my /= N;
-    L.s = Math.max(1, Math.floor(Math.sqrt(N))); L.mx = mx; L.my = my;
-    maxS = Math.max(maxS, L.s);
+function layoutSquares(str) {
+  return memo('Q' + lookKey() + str, () => {
+    const T = layoutText(str), L = S.look;
+    const gs = T.groups.map(g => {
+      const px = [];
+      for (let k = g.i0; k < g.i1; k++) px.push({ x: T.pts[k].x, y: T.pts[k].y, src: k });
+      let mx = 0, my = 0; px.forEach(p => { mx += p.x + .5; my += p.y + .5; }); mx /= px.length; my /= px.length;
+      return { px, mx, my, line: g.line, s: Math.max(1, Math.floor(Math.sqrt(px.length))) };
+    });
+    let maxS = 1; gs.forEach(g => maxS = Math.max(maxS, g.s));
+    if (L.uniform) gs.forEach(g => g.s = maxS);
+    const lineInfo = {};
+    gs.forEach(g => { const o = lineInfo[g.line] || (lineInfo[g.line] = { sum: 0, n: 0, maxS: 0 }); o.sum += g.my; o.n++; o.maxS = Math.max(o.maxS, g.s); });
+    const pts = [], groups = [];
+    gs.forEach((g, gi) => {
+      const o = lineInfo[g.line], cy = o.sum / o.n;
+      g.sx = Math.round(g.mx - g.s / 2);
+      g.sy = L.align === 'bottom' ? Math.round(cy + o.maxS / 2) - g.s : L.align === 'top' ? Math.round(cy - o.maxS / 2) : Math.round(cy - g.s / 2);
+      packGrid(g.px, g.s);
+      const all = g.px.concat(fillEmpty(g.px, g.s, src => ({ x: src.x, y: src.y, src: src.src })));
+      const i0 = pts.length;
+      all.forEach(p => pts.push({ x: g.sx + p.col, y: g.sy + p.row, g: gi, src: p.src }));
+      groups.push({ sx: g.sx, sy: g.sy, s: g.s, cx: g.sx + g.s / 2, cy: g.sy + g.s / 2, i0, i1: pts.length });
+    });
+    return { kind: 'squares', str, pts, groups, maxS, w: T.w, h: T.h };
   });
-  // Uniform: every square takes the largest size; smaller letters duplicate pixels to fill it
-  letters.forEach(L => { if (P.l1 === 'uniform') L.s = maxS; L.sx = Math.round(L.mx - L.s / 2); minS = Math.min(minS, L.s); });
-  let dupPx = 0;
-  // Align squares within each text line on a shared baseline / center / top
-  const lineInfo = {};
-  letters.forEach(L => { const o = lineInfo[L.line] || (lineInfo[L.line] = { sum: 0, n: 0, maxS: 0 }); o.sum += L.my; o.n++; o.maxS = Math.max(o.maxS, L.s); });
-  letters.forEach((L, k) => {
-    const o = lineInfo[L.line], cy = o.sum / o.n, s = L.s;
-    if (P.align === 'bottom') L.sy = Math.round(cy + o.maxS / 2) - s;
-    else if (P.align === 'top') L.sy = Math.round(cy - o.maxS / 2);
-    else L.sy = Math.round(cy - s / 2);
-    L.x = L.sx + s / 2; L.y = L.sy + s / 2; L.extra = L.px.length - s * s;
-    const mx = L.sx + s / 2 - .5, my = L.y - .5;
-    packGrid(L.px, s);
-    const cl = fillEmpty(L.px, s, src => ({ x: src.x, y: src.y, dup: true, of: src }));
-    dupPx += cl.length; L.px.push(...cl);
-    rankItems(L.px, P.order, rand, mx, my);
-    L.px.forEach((p, i) => { p.tx = L.sx + p.col; p.ty = L.sy + p.row; p.axis = axisFor(i, rand); });
-  });
-  rankItems(letters, P.order, rand, 0, 0);
-  letters.forEach(L => L.rank1 = L.rank);
+}
 
-  // Level 2: squares act as pixels → S×S grid of cells (cell = largest square) centered on frame
-  // Round down: S=⌊√M⌋, extra squares overlap. Round up: S=⌈√M⌉, empty cells get duplicated squares.
-  const M = letters.length, S = Math.max(1, P.l2 === 'up' ? Math.ceil(Math.sqrt(M)) : Math.floor(Math.sqrt(M)));
-  const gap = P.g2, cell = maxS, side = S * cell + (S - 1) * gap;
-  const bx = -Math.round(side / 2), by = -Math.round(side / 2);
-  let dupSq = 0;
-  if (M) {
-    if (P.assign === 'nearest') {
-      // Centermost square goes first and claims its nearest free cell; then outward. Timing follows the same order.
-      const cellXY = k => [bx + (k % S) * (cell + gap) + cell / 2, by + Math.floor(k / S) * (cell + gap) + cell / 2];
-      const all = [...Array(S * S).keys()], free = new Set(all);
-      const order = letters.slice().sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || a.x - b.x || a.y - b.y);
+function layoutBig(str) {
+  return memo('B' + lookKey() + str, () => {
+    const Q = layoutSquares(str), L = S.look, M = Q.groups.length;
+    if (!M) return { kind: 'big', str, pts: [], groups: [], w: 0, h: 0 };
+    const Sz = Math.max(1, L.roundUp ? Math.ceil(Math.sqrt(M)) : Math.floor(Math.sqrt(M)));
+    const cell = Q.maxS, gap = L.gap, side = Sz * cell + (Sz - 1) * gap, b0 = -Math.round(side / 2);
+    const cellXY = k => [b0 + (k % Sz) * (cell + gap) + cell / 2, b0 + Math.floor(k / Sz) * (cell + gap) + cell / 2];
+    let placed = []; // {gi, k}
+    let ordered = false;
+    if (L.assign === 'center') {
+      ordered = true;
+      const all = [...Array(Sz * Sz).keys()], free = new Set(all);
       const ring = k => Math.round(Math.hypot(...cellXY(k)) * 1000) / 1000;
-      order.forEach(L => {
-        // Only the innermost free ring is eligible; within it, take the cell nearest to this square.
+      const order = Q.groups.map((g, gi) => ({ gi, x: g.cx, y: g.cy })).sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || a.x - b.x || a.y - b.y);
+      order.forEach(it => {
         let pool = free.size ? [...free] : all;
         if (free.size) { const r0 = Math.min(...pool.map(ring)); pool = pool.filter(k => ring(k) <= r0 + 1e-6); }
         let best = pool[0], bd = Infinity;
-        for (const k of pool) {
-          const [cx, cy] = cellXY(k), d = Math.hypot(L.x - cx, L.y - cy);
-          if (d < bd) { bd = d; best = k; }
-        }
-        free.delete(best); L.row = Math.floor(best / S); L.col = best % S;
+        for (const k of pool) { const [cx, cy] = cellXY(k), d = Math.hypot(it.x - cx, it.y - cy); if (d < bd) { bd = d; best = k; } }
+        free.delete(best); placed.push({ gi: it.gi, k: best });
       });
-      const cl = fillEmpty(letters, S, src => ({ ...src, dup: true }));
-      cl.sort((a, b) => Math.hypot(...cellXY(a.row * S + a.col)) - Math.hypot(...cellXY(b.row * S + b.col)));
-      const seq = order.concat(cl);
-      seq.forEach((L, i) => L.rank = seq.length > 1 ? i / (seq.length - 1) : 0);
-      dupSq = cl.length; letters.push(...cl);
+      const real = placed.slice();
+      [...free].sort((a, b) => ring(a) - ring(b)).forEach(k => {
+        const [cx, cy] = cellXY(k); let best = real[0], bd = Infinity;
+        for (const p of real) { const [px, py] = cellXY(p.k), d = Math.abs(px - cx) + Math.abs(py - cy) * 1.01; if (d < bd) { bd = d; best = p; } }
+        placed.push({ gi: best.gi, k });
+      });
     } else {
-      packGrid(letters, S);
-      const cl = fillEmpty(letters, S, src => ({ ...src, dup: true }));
-      dupSq = cl.length; letters.push(...cl);
-      rankItems(letters, P.order, rand, 0, 0);
+      const items = Q.groups.map((g, gi) => ({ gi, x: g.cx, y: g.cy }));
+      packGrid(items, Sz);
+      items.push(...fillEmpty(items, Sz, src => ({ gi: src.gi, x: src.x, y: src.y })));
+      placed = items.map(it => ({ gi: it.gi, k: it.row * Sz + it.col }));
     }
-    letters.forEach((L, k) => {
-      const off = Math.floor((cell - L.s) / 2);
-      L.dx = bx + L.col * (cell + gap) + off - L.sx;
-      L.dy = by + L.row * (cell + gap) + off - L.sy;
-      L.rank2 = L.rank; L.axis2 = axisFor(k, rand);
+    const pts = [], groups = [];
+    placed.forEach((pl, pi) => {
+      const g = Q.groups[pl.gi], off = Math.floor((cell - g.s) / 2);
+      const x0 = b0 + (pl.k % Sz) * (cell + gap) + off, y0 = b0 + Math.floor(pl.k / Sz) * (cell + gap) + off;
+      const dx = x0 - g.sx, dy = y0 - g.sy;
+      for (let i = g.i0; i < g.i1; i++) pts.push({ x: Q.pts[i].x + dx, y: Q.pts[i].y + dy, g: pi, src: i });
+      groups.push({ gi: pl.gi, order: ordered && placed.length > 1 ? pi / (placed.length - 1) : null });
     });
-  }
-
-  // Level 0: image pixels → text pixels
-  const IMG = sampleImage();
-  const hasImg = !!(IMG && IMG.px.length);
-  if (hasImg) mapImage(letters.filter(L => !L.dup), IMG.px, rand);
-
-  const H = P.hold;
-  const T0 = H, p0End = T0 + P.s0 + P.d0;
-  const T1 = hasImg ? p0End + H * 0.6 : H, p1End = T1 + P.c1 + P.s1 + P.d1;
-  const T2 = p1End + H * 0.6, p2End = T2 + P.s2 + P.d2;
-  const total = p2End + H * 1.5;
-  const totalPx = letters.reduce((a, L) => a + (L.dup ? 0 : L.px.filter(q => !q.dup).length), 0);
-  scene = { letters, rows, cols, T0, T1, T2, total, S, M, totalPx, cell, hasImg,
-    extW: Math.max(cols * 8, hasImg ? IMG.gw : 0), extH: Math.max(rows * 16, hasImg ? IMG.gh : 0) };
-  const sq = minS === maxS ? `${maxS}×${maxS}` : `${minS}–${maxS}px`;
-  const l2note = M > S * S ? ` (+${M - S * S} overlapping)` : dupSq ? ` (+${dupSq} duplicated)` : '';
-  $('hud').textContent = M
-    ? `${hasImg ? `image ${IMG.px.length} px → ` : ''}${M} letters · ${totalPx} px${dupPx ? ` +${dupPx} duplicated` : ''} → squares ${sq} → ${S}×${S} grid${l2note}`
-    : 'Type something';
+    return { kind: 'big', str, pts, groups, w: side, h: side, grid: Sz };
+  });
 }
 
-// Split-axis move: first axis runs over [0,a], second over [1-a,1]; overlap 0 = strictly sequential.
-function move(fx, fy, tx, ty, lt, dur, axis) {
-  if (lt <= 0) return [fx, fy];
-  if (lt >= dur) return [tx, ty];
-  const u = lt / dur, a = 0.5 + 0.5 * P.overlap, e = EASE[P.ease];
-  const f = e(clamp01(u / a)), s = e(clamp01((u - (1 - a)) / a));
-  const ux = axis === 0 ? f : s, uy = axis === 0 ? s : f;
-  return [fx + (tx - fx) * ux, fy + (ty - fy) * uy];
-}
-
-let W = 0, Hh = 0, dpr = 1;
-function resize() {
-  dpr = Math.max(1, window.devicePixelRatio || 1);
-  const r = stage.getBoundingClientRect();
-  W = Math.max(1, Math.round(r.width * dpr)); Hh = Math.max(1, Math.round(r.height * dpr));
-  cv.width = W; cv.height = Hh;
-  draw();
-}
-
-function draw() {
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, Hh);
-  if (!scene || !scene.letters.length) return;
-  const { letters, T0, T1, T2, hasImg } = scene;
-  const p = Math.max(1, Math.floor(Math.min(W * 0.88 / scene.extW, Hh * 0.8 / scene.extH)));
-  const ox = Math.floor(W / 2), oy = Math.floor(Hh / 2);
-  const inset = P.seams && p >= 3 ? Math.max(1, Math.round(p * 0.1)) : 0;
-  const t = tl;
-  ctx.fillStyle = '#fff';
-  const plot = (x, y) => {
-    if (P.snap) { x = Math.round(x); y = Math.round(y); }
-    ctx.fillRect(Math.round(ox + x * p) + inset, Math.round(oy + y * p) + inset, p - inset, p - inset);
-  };
-  const inStage0 = hasImg && t < T0 + P.s0 + P.d0;
-  for (const L of letters) {
-    if (inStage0 && L.dup) continue;
-    const [lx, ly] = move(0, 0, L.dx, L.dy, t - T2 - L.rank2 * P.s2, P.d2, L.axis2);
-    const ld = L.rank1 * P.c1;
-    for (const q of L.px) {
-      const [x, y] = move(q.x, q.y, q.tx, q.ty, t - T1 - ld - q.rank * P.s1, P.d1, q.axis);
-      if (inStage0) {
-        if (q.dup) continue;
-        for (const s of q.src) {
-          const [x0, y0] = move(s.x, s.y, q.x, q.y, t - T0 - s.rank * P.s0, P.d0, s.axis);
-          plot(x0 + x - q.x + lx, y0 + y - q.y + ly);
-        }
-      } else plot(x + lx, y + ly);
-    }
-  }
-}
-
-// ---- image (Level 0) ----
-function makeSample() {
+// ---- images ----
+const SAMPLE = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 200;
   const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 200, 200); g.fillStyle = '#fff';
   g.beginPath();
   for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 40 : 96; g.lineTo(100 + r * Math.cos(a), 106 + r * Math.sin(a)); }
-  g.closePath(); g.fill();
-  return c;
+  g.closePath(); g.fill(); return c;
+})();
+const IMG = new Map(), SRCHASH = new Map();
+function getImg(src) {
+  if (src === 'sample') return SAMPLE;
+  let e = IMG.get(src);
+  if (!e) { e = { ok: false, img: new Image() }; e.img.onload = () => { e.ok = true; LC.clear(); rebuild(); }; e.img.src = src; IMG.set(src, e); }
+  return e.ok ? e.img : null;
 }
-let srcImg = makeSample();
-
-function sampleImage() {
-  if (!srcImg) return null;
-  const sw = srcImg.naturalWidth || srcImg.width, sh = srcImg.naturalHeight || srcImg.height;
-  const gw = P.iw, gh = Math.max(1, Math.min(240, Math.round(gw * sh / sw)));
+function srcKey(src) { if (src === 'sample') return 'sample'; if (!SRCHASH.has(src)) SRCHASH.set(src, hashStr(src)); return SRCHASH.get(src); }
+function sampleImage(img, width) {
+  const sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+  const gw = Math.max(1, Math.round(width)), gh = Math.max(1, Math.min(240, Math.round(gw * sh / sw)));
   const c = document.createElement('canvas'); c.width = gw; c.height = gh;
   const g = c.getContext('2d', { willReadFrequently: true });
-  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-  g.drawImage(srcImg, 0, 0, gw, gh);
-  const d = g.getImageData(0, 0, gw, gh).data, px = [];
-  const left = -Math.round(gw / 2), top = -Math.round(gh / 2);
-  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
-    const i = (y * gw + x) * 4, lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    if (d[i + 3] >= 128 && (P.inv ? lum < P.thr : lum >= P.thr)) px.push({ x: left + x, y: top + y });
-  }
-  return { gw, gh, px };
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, gw, gh);
+  return { gw, gh, d: g.getImageData(0, 0, gw, gh).data };
+}
+function layoutImage(im) {
+  const img = getImg(im.src);
+  if (!img) return { kind: 'image', pts: [], groups: [], w: 0, h: 0, key: 'Iloading' };
+  return memo('I' + srcKey(im.src) + '|' + im.width + '|' + im.threshold + '|' + im.invert, () => {
+    const { gw, gh, d } = sampleImage(img, im.width), pts = [];
+    const left = -Math.round(gw / 2), top = -Math.round(gh / 2);
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+      const i = (y * gw + x) * 4, lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (d[i + 3] >= 128 && (im.invert ? lum < im.threshold : lum >= im.threshold)) pts.push({ x: left + x, y: top + y, g: -1 });
+    }
+    return { kind: 'image', pts, groups: [], w: gw, h: gh };
+  });
 }
 
-// Map image pixels onto text pixels, keeping spatial order: split the image (sorted by y) into one band
-// per text row, proportional to that row's pixel count, then spread each band across the row by x.
-// More image pixels than text pixels → several merge into one; fewer → image pixels get duplicated.
-function mapImage(letters, imgPx, rand) {
-  const tp = [];
-  letters.forEach(L => L.px.forEach(q => { if (!q.dup) { q.src = []; tp.push(q); } }));
-  const T = tp.length, I = imgPx.length, rowsMap = new Map();
-  tp.forEach(q => { if (!rowsMap.has(q.y)) rowsMap.set(q.y, []); rowsMap.get(q.y).push(q); });
-  const rowsArr = [...rowsMap.keys()].sort((a, b) => a - b).map(y => rowsMap.get(y).sort((a, b) => a.x - b.x));
-  const img = imgPx.slice().sort((a, b) => a.y - b.y || a.x - b.x), srcs = [];
+function clipLayout(i, tick = 0) {
+  const c = S.clips[i];
+  if (c.type === 'image') return layoutImage(c.image);
+  if (c.type === 'text' || c.type === 'cipher') return layoutText(clipString(i, tick));
+  const str = clipString(i);
+  return c.type === 'squares' ? layoutSquares(str) : layoutBig(str);
+}
+
+// ================= matching A → B =================
+function pairsRows(A, B) {
+  const nA = A.length, nB = B.length, out = [];
+  if (!nA || !nB) return out;
+  const rows = new Map();
+  B.forEach(p => { if (!rows.has(p.y)) rows.set(p.y, []); rows.get(p.y).push(p); });
+  const rowsArr = [...rows.keys()].sort((a, b) => a - b).map(y => rows.get(y).sort((a, b) => a.x - b.x));
+  const As = A.slice().sort((a, b) => a.y - b.y || a.x - b.x);
   let cum = 0;
   for (const row of rowsArr) {
     const k = row.length;
-    const a = Math.min(Math.floor(cum * I / T), I - 1), b = Math.max(a + 1, Math.floor((cum + k) * I / T));
+    const a = Math.min(Math.floor(cum * nA / nB), nA - 1), b = Math.max(a + 1, Math.floor((cum + k) * nA / nB));
     cum += k;
-    const band = img.slice(a, b).sort((u, v) => u.x - v.x || u.y - v.y), m = band.length;
-    if (m >= k) band.forEach((s, i) => { const o = { x: s.x, y: s.y }; row[Math.floor(i * k / m)].src.push(o); srcs.push(o); });
-    else row.forEach((q, j) => { const s = band[Math.floor(j * m / k)], o = { x: s.x, y: s.y }; q.src.push(o); srcs.push(o); });
+    const band = As.slice(a, b).sort((u, v) => u.x - v.x || u.y - v.y), m = band.length;
+    if (m >= k) band.forEach((s, i) => out.push({ a: s, b: row[Math.floor(i * k / m)], g: -1 }));
+    else row.forEach((q, j) => out.push({ a: band[Math.floor(j * m / k)], b: q, g: -1 }));
   }
-  rankItems(srcs, P.order, rand, 0, 0);
-  srcs.forEach((s, i) => s.axis = axisFor(i, rand));
-  letters.forEach(L => L.px.forEach(q => { if (q.dup) q.src = q.of.src; }));
+  return out;
+}
+function pairsRandom(A, B, rand) {
+  const nA = A.length, nB = B.length, out = [];
+  if (!nA || !nB) return out;
+  const sh = arr => { const o = arr.slice(); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } return o; };
+  const a = sh(A), b = sh(B);
+  if (nA >= nB) a.forEach((p, i) => out.push({ a: p, b: b[Math.floor(i * nB / nA)], g: -1 }));
+  else b.forEach((q, j) => out.push({ a: a[Math.floor(j * nA / nB)], b: q, g: -1 }));
+  return out;
+}
+function pairsLetters(TA, TB) {
+  const key = g => g.line + ':' + g.col, mapB = new Map();
+  TB.groups.forEach((g, gi) => mapB.set(key(g), gi));
+  const out = [], usedB = new Set(), unA = [];
+  const gPos = [];
+  TA.groups.forEach(ga => {
+    const gb = mapB.get(key(ga));
+    const Apts = TA.pts.slice(ga.i0, ga.i1);
+    if (gb === undefined) { unA.push(...Apts); return; }
+    usedB.add(gb);
+    const gbo = TB.groups[gb], gid = gPos.length;
+    let sx = 0, sy = 0; Apts.forEach(p => { sx += p.x; sy += p.y; });
+    gPos.push([sx / Apts.length, sy / Apts.length]);
+    pairsRows(Apts, TB.pts.slice(gbo.i0, gbo.i1)).forEach(p => { p.g = gid; out.push(p); });
+  });
+  const unB = [];
+  TB.groups.forEach((g, gi) => { if (!usedB.has(gi)) unB.push(...TB.pts.slice(g.i0, g.i1)); });
+  if (unA.length || unB.length) pairsRows(unA.length ? unA : TA.pts, unB.length ? unB : TB.pts).forEach(p => out.push(p));
+  return { pairs: out, gPos };
+}
+function groupPosFrom(layout) { return layout.groups.map(g => g.cx !== undefined ? [g.cx, g.cy] : [0, 0]); }
+
+function matchFor(A, B, tr, rand) {
+  const m = tr.match, same = A.str !== undefined && A.str === B.str;
+  if (m === 'auto' && same) {
+    // text → squares: each letter collapses into its own square
+    if (A.kind === 'text' && B.kind === 'squares')
+      return { pairs: B.pts.map(q => ({ a: A.pts[q.src], b: q, g: q.g })), gPos: groupPosFrom(B) };
+    // squares → big square: squares move as rigid units
+    if (A.kind === 'squares' && B.kind === 'big')
+      return { pairs: B.pts.map(p => ({ a: A.pts[p.src], b: p, g: p.g })), gPos: B.groups.map(g => [A.groups[g.gi].cx, A.groups[g.gi].cy]), gOrder: B.groups.map(g => g.order), rigid: true };
+    // text → big square directly
+    if (A.kind === 'text' && B.kind === 'big') {
+      const Q = layoutSquares(B.str);
+      return { pairs: B.pts.map(p => ({ a: A.pts[Q.pts[p.src].src], b: p, g: p.g })), gPos: B.groups.map(g => [Q.groups[g.gi].cx, Q.groups[g.gi].cy]), gOrder: B.groups.map(g => g.order) };
+    }
+    // reverse directions: run the forward match and swap ends
+    if ((B.kind === 'text' && (A.kind === 'squares' || A.kind === 'big')) || (A.kind === 'big' && B.kind === 'squares')) {
+      const r = matchFor(B, A, tr, rand);
+      r.pairs.forEach(p => { const t = p.a; p.a = p.b; p.b = t; });
+      return r;
+    }
+  }
+  if ((m === 'auto' || m === 'letters') && A.kind === 'text' && B.kind === 'text' && A.sig === B.sig) return pairsLetters(A, B);
+  if (m === 'random') return { pairs: pairsRandom(A.pts, B.pts, rand) };
+  return { pairs: pairsRows(A.pts, B.pts) };
 }
 
-function loadFile(f) {
-  if (!f || !/^image\//.test(f.type)) { $('imgName').textContent = 'That file is not an image. Use a PNG, JPG, GIF or WebP.'; return; }
-  const im = new Image();
-  im.onload = () => {
-    srcImg = im; $('imgName').textContent = f.name;
-    readParams(); const s = sampleImage();
-    if (s && s.px.length > s.gw * s.gh * 0.5) $('inv').checked = !$('inv').checked; // mostly lit → likely black-on-white
-    rebuild(false);
+function rankBy(pos, mode, rand, cx, cy) {
+  const n = pos.length, r = new Float32Array(n);
+  if (n <= 1) return r;
+  const key = mode === 'rnd' ? () => rand()
+    : mode === 'sweep' ? p => p[0] + p[1] * 1e-3
+    : mode === 'down' ? p => p[1] + p[0] * 1e-3
+    : mode === 'center' ? p => Math.hypot(p[0] - cx, p[1] - cy) + rand() * 1e-3
+    : p => -Math.hypot(p[0] - cx, p[1] - cy) + rand() * 1e-3;
+  const idx = pos.map((p, i) => [key(p), i]).sort((a, b) => a[0] - b[0]);
+  idx.forEach((e, k) => r[e[1]] = k / (n - 1));
+  return r;
+}
+function axisFor(i, mode, rand) { return mode === 'x' ? 0 : mode === 'y' ? 1 : mode === 'alt' ? i % 2 : rand() < .5 ? 0 : 1; }
+
+const MC = new Map();
+function buildMovers(A, B, tr, seedKey) {
+  const key = A.key + '>' + B.key + '>' + JSON.stringify(tr) + seedKey;
+  if (MC.has(key)) return MC.get(key);
+  const rand = mulberry32(hashStr(seedKey) + (tr.seed | 0) * 9973);
+  const M = matchFor(A, B, tr, rand), P = M.pairs, n = P.length;
+  const mv = { n, fx: new Float32Array(n), fy: new Float32Array(n), tx: new Float32Array(n), ty: new Float32Array(n), rank: new Float32Array(n), axis: new Uint8Array(n) };
+  P.forEach((p, i) => { mv.fx[i] = p.a.x; mv.fy[i] = p.a.y; mv.tx[i] = p.b.x; mv.ty[i] = p.b.y; });
+  if (M.gPos && M.gPos.length) {
+    const G = M.gPos.length;
+    const gr = M.gOrder && M.gOrder[0] !== null && tr.order === 'rnd' ? Float32Array.from(M.gOrder) : rankBy(M.gPos, tr.order, rand, 0, 0);
+    const gAxis = M.gPos.map((_, k) => axisFor(k, tr.axis, rand));
+    const members = Array.from({ length: G }, () => []);
+    const loose = [];
+    P.forEach((p, i) => (p.g >= 0 ? members[p.g] : loose).push(i));
+    members.forEach((list, gk) => {
+      const wr = M.rigid ? null : rankBy(list.map(i => [P[i].a.x, P[i].a.y]), tr.order, rand, M.gPos[gk][0], M.gPos[gk][1]);
+      list.forEach((i, j) => {
+        mv.rank[i] = M.rigid ? gr[gk] : tr.cascade * gr[gk] + (1 - tr.cascade) * wr[j];
+        mv.axis[i] = M.rigid ? gAxis[gk] : axisFor(i, tr.axis, rand);
+      });
+    });
+    if (loose.length) { const lr = rankBy(loose.map(i => [P[i].a.x, P[i].a.y]), tr.order, rand, 0, 0); loose.forEach((i, j) => { mv.rank[i] = lr[j]; mv.axis[i] = axisFor(i, tr.axis, rand); }); }
+  } else {
+    const r = rankBy(P.map(p => [p.a.x, p.a.y]), tr.order, rand, 0, 0);
+    mv.rank.set(r);
+    for (let i = 0; i < n; i++) mv.axis[i] = axisFor(i, tr.axis, rand);
+  }
+  MC.set(key, mv);
+  if (MC.size > 60) MC.delete(MC.keys().next().value);
+  return mv;
+}
+
+// ================= sequence =================
+let segs = [], total = 0, ext = { w: 64, h: 32 }, items = [];
+function rebuild() {
+  segs = []; let t = 0;
+  const en = S.clips.map((c, i) => c.enabled ? i : -1).filter(i => i >= 0);
+  ext = { w: 16, h: 16 };
+  en.forEach((i, k) => {
+    const c = S.clips[i], L = clipLayout(i);
+    ext.w = Math.max(ext.w, L.w); ext.h = Math.max(ext.h, L.h);
+    segs.push({ kind: 'hold', i, t0: t, t1: t + c.hold, L }); t += c.hold;
+    const j = en[k + 1];
+    if (j !== undefined) {
+      const B = clipLayout(j);
+      segs.push({ kind: 'trans', i, j, t0: t, t1: t + c.trans.dur, tr: c.trans, A: L, B, mv: buildMovers(L, B, c.trans, c.id) });
+      t += c.trans.dur;
+    }
+  });
+  total = t;
+  if (tl > total) tl = total;
+  renderTimeline();
+  scheduleSave();
+}
+let saveT = 0;
+function scheduleSave() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { } }, 400);
+}
+
+// ================= render =================
+let W = 0, Hh = 0;
+function resize() {
+  const dpr = Math.max(1, window.devicePixelRatio || 1), r = stage.getBoundingClientRect();
+  W = Math.max(1, Math.round(r.width * dpr)); Hh = Math.max(1, Math.round(r.height * dpr));
+  cv.width = W; cv.height = Hh;
+}
+function segAt(t) {
+  for (const s of segs) if (t < s.t1) return s;
+  return segs[segs.length - 1];
+}
+let lastHud = '';
+function draw(t) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, Hh);
+  const seg = segAt(t);
+  if (!seg) return;
+  const p = Math.max(1, Math.floor(Math.min(W * 0.9 / ext.w, Hh * 0.82 / ext.h)));
+  const ox = Math.floor(W / 2), oy = Math.floor(Hh / 2);
+  const inset = S.look.seams && p >= 3 ? Math.max(1, Math.round(p * 0.1)) : 0, sz = p - inset, snap = S.look.snap;
+  ctx.fillStyle = '#fff';
+  const plot = (x, y) => {
+    if (snap) { x = Math.round(x); y = Math.round(y); }
+    ctx.fillRect(Math.round(ox + x * p) + inset, Math.round(oy + y * p) + inset, sz, sz);
   };
-  im.onerror = () => { $('imgName').textContent = 'Could not read that image. Try a PNG or JPG.'; };
-  im.src = URL.createObjectURL(f);
+  let hud, count;
+  if (seg.kind === 'hold') {
+    const c = S.clips[seg.i];
+    let L = seg.L;
+    if (c.type === 'cipher' && c.flicker > 0 && c.mode !== 'hex') {
+      const lt = t - seg.t0, per = 1 / c.flicker;
+      const tick = lt < per || lt >= c.hold - per ? 0 : Math.floor(lt * c.flicker);
+      if (tick) L = layoutText(clipString(seg.i, tick));
+    }
+    for (const q of L.pts) plot(q.x, q.y);
+    hud = TYPES[c.type] + ' ' + (seg.i + 1); count = L.pts.length;
+  } else {
+    const m = seg.mv, tr = seg.tr, D = seg.t1 - seg.t0, lt = t - seg.t0;
+    hud = TYPES[S.clips[seg.i].type] + ' ' + (seg.i + 1) + ' → ' + TYPES[S.clips[seg.j].type] + ' ' + (seg.j + 1); count = m.n;
+    if (!m.n) { for (const q of (lt < D / 2 ? seg.A : seg.B).pts) plot(q.x, q.y); }
+    else {
+      const sp = tr.stagger * D, md = Math.max(0.03, D - sp), a = 0.5 + 0.5 * tr.overlap, e = EASE[tr.ease] || EASE.cubic;
+      for (let i = 0; i < m.n; i++) {
+        const u = (lt - m.rank[i] * sp) / md;
+        if (u <= 0) plot(m.fx[i], m.fy[i]);
+        else if (u >= 1) plot(m.tx[i], m.ty[i]);
+        else {
+          const f = e(clamp01(u / a)), g = e(clamp01((u - (1 - a)) / a));
+          const ux = m.axis[i] ? g : f, uy = m.axis[i] ? f : g;
+          plot(m.fx[i] + (m.tx[i] - m.fx[i]) * ux, m.fy[i] + (m.ty[i] - m.fy[i]) * uy);
+        }
+      }
+    }
+  }
+  const h = (seg.kind === 'hold' ? 'Hold · ' : 'Transition · ') + hud + ' · ' + count + ' px';
+  if (h !== lastHud) { $('hud').textContent = h; lastHud = h; }
 }
-$('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+
+// ================= timeline =================
+const pps = () => +$('zoom').value;
+function tToX(t) {
+  let last = null;
+  for (const it of items) {
+    if (it.t1 <= it.t0) continue;
+    if (t >= it.t0 && t < it.t1) return it.x0 + (t - it.t0) / (it.t1 - it.t0) * (it.x1 - it.x0);
+    last = it;
+  }
+  return last ? last.x1 : 0;
+}
+function xToT(x) {
+  if (x <= 0) return 0;
+  for (const it of items) if (x >= it.x0 && x < it.x1) return it.t1 > it.t0 ? it.t0 + (x - it.x0) / (it.x1 - it.x0) * (it.t1 - it.t0) : it.t0;
+  return total;
+}
+function snippet(i) {
+  const c = S.clips[i];
+  if (c.type === 'text') return c.text.replace(/\n/g, ' / ') || '(empty)';
+  if (c.type === 'cipher') return c.mode + (c.text ? ' · ' + c.text.replace(/\n/g, ' / ') : ' · previous text');
+  if (c.type === 'image') return c.image.src === 'sample' ? 'sample star' : 'loaded image';
+  return 'from: ' + (clipString(i).replace(/\n/g, ' / ') || '(no text)');
+}
+function renderTimeline() {
+  const k = pps(); items = [];
+  let x = 0, t = 0;
+  const enIdx = S.clips.map((c, i) => c.enabled ? i : -1).filter(i => i >= 0);
+  S.clips.forEach((c, i) => {
+    if (!c.enabled) { items.push({ kind: 'off', i, x0: x, x1: x + 26, t0: t, t1: t }); x += 26; return; }
+    const w = c.hold * k;
+    items.push({ kind: 'clip', i, x0: x, x1: x + w, t0: t, t1: t + c.hold }); x += w; t += c.hold;
+    if (enIdx[enIdx.length - 1] !== i) { const w2 = c.trans.dur * k; items.push({ kind: 'trans', i, x0: x, x1: x + w2, t0: t, t1: t + c.trans.dur }); x += w2; t += c.trans.dur; }
+  });
+  const width = x + 80;
+  let h = `<div class="ruler" data-k="ruler"></div>`;
+  const step = k >= 120 ? 0.25 : k >= 50 ? 0.5 : 1;
+  for (let s = 0; s <= total + 1e-6; s += step) {
+    const major = Math.abs(s - Math.round(s)) < 1e-6;
+    const tx = s >= total ? (items.filter(it => it.t1 > it.t0).pop() || { x1: 0 }).x1 : tToX(s);
+    h += `<div class="tick${major ? '' : ' minor'}" style="left:${tx}px">${major ? Math.round(s) + 's' : ''}</div>`;
+  }
+  for (const it of items) {
+    const c = S.clips[it.i], w = Math.max(2, it.x1 - it.x0);
+    const isSelClip = sel && sel.kind === 'clip' && sel.id === c.id, isSelTr = sel && sel.kind === 'trans' && sel.id === c.id;
+    if (it.kind === 'clip') h += `<div class="blk clip${isSelClip ? ' sel' : ''}" data-k="clip" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="${esc(TYPES[c.type])}: ${esc(snippet(it.i))}"><div class="bt">${esc(TYPES[c.type])}</div><div class="bs">${esc(snippet(it.i))}</div><div class="bd">${c.hold.toFixed(1)}s</div><div class="grip" data-grip="hold"></div></div>`;
+    else if (it.kind === 'off') h += `<div class="blk off${isSelClip ? ' sel' : ''}" data-k="off" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="${esc(TYPES[c.type])} (off)"><div class="bt">${esc(TYPES[c.type])} off</div></div>`;
+    else h += `<div class="blk trans${isSelTr ? ' sel' : ''}" data-k="trans" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="Transition ${c.trans.dur.toFixed(1)}s"><div class="bd">${c.trans.dur.toFixed(1)}s</div><div class="grip" data-grip="dur"></div></div>`;
+  }
+  h += `<div class="phead" id="phead"></div><div class="drop" id="drop" hidden></div>`;
+  track.innerHTML = h;
+  track.style.width = width + 'px';
+  updatePlayhead();
+}
+function updatePlayhead() {
+  const ph = $('phead'); if (ph) ph.style.left = tToX(Math.min(tl, total - 1e-6)) + 'px';
+  $('tout').textContent = tl.toFixed(2) + ' / ' + total.toFixed(2) + 's';
+}
+
+let drag = null;
+track.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const r = track.getBoundingClientRect(), x = e.clientX - r.left;
+  const grip = e.target.closest('.grip'), blk = e.target.closest('.blk');
+  track.setPointerCapture(e.pointerId);
+  if (grip && blk) {
+    const i = +blk.dataset.i, c = S.clips[i], field = grip.dataset.grip;
+    drag = { mode: 'resize', i, field, x0: e.clientX, v0: field === 'hold' ? c.hold : c.trans.dur };
+    select(field === 'hold' ? 'clip' : 'trans', c.id, false);
+    return;
+  }
+  if (blk && (blk.dataset.k === 'clip' || blk.dataset.k === 'off')) { drag = { mode: 'press', i: +blk.dataset.i, x0: e.clientX, el: blk }; return; }
+  if (blk && blk.dataset.k === 'trans') { const c = S.clips[+blk.dataset.i]; select('trans', c.id, true); drag = null; return; }
+  drag = { mode: 'scrub' }; scrubTo(x);
+});
+track.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const r = track.getBoundingClientRect(), x = e.clientX - r.left;
+  if (drag.mode === 'resize') {
+    const v = Math.max(0.1, Math.round((drag.v0 + (e.clientX - drag.x0) / pps()) * 10) / 10);
+    const c = S.clips[drag.i];
+    if (drag.field === 'hold') c.hold = v; else c.trans.dur = v;
+    rebuild(); syncInspectorValues();
+    const g = track.querySelector(`.blk[data-i="${drag.i}"][data-k="${drag.field === 'hold' ? 'clip' : 'trans'}"] .grip`); if (g) g.classList.add('on');
+  } else if (drag.mode === 'press' || drag.mode === 'move') {
+    if (drag.mode === 'press' && Math.abs(e.clientX - drag.x0) < 5) return;
+    drag.mode = 'move';
+    const el = track.querySelector(`.blk[data-i="${drag.i}"]:not(.trans)`); if (el) el.classList.add('dragging');
+    const cl = items.filter(it => it.kind !== 'trans' && it.i !== drag.i);
+    let idx = cl.findIndex(it => x < (it.x0 + it.x1) / 2); if (idx < 0) idx = cl.length;
+    drag.target = idx;
+    const d = $('drop'); d.hidden = false;
+    d.style.left = (idx < cl.length ? cl[idx].x0 : (cl.length ? items[items.length - 1].x1 : 0)) - 1 + 'px';
+  } else if (drag.mode === 'scrub') scrubTo(x);
+});
+const endDrag = () => {
+  if (!drag) return;
+  if (drag.mode === 'press') { const c = S.clips[drag.i]; select('clip', c.id, true); }
+  else if (drag.mode === 'move' && drag.target !== undefined) {
+    const c = S.clips.splice(drag.i, 1)[0];
+    S.clips.splice(drag.target, 0, c);
+    sel = { kind: 'clip', id: c.id };
+    rebuild(); renderInspector();
+  } else if (drag.mode === 'resize') renderTimeline();
+  drag = null;
+};
+track.addEventListener('pointerup', endDrag);
+track.addEventListener('pointercancel', endDrag);
+function scrubTo(x) { playing = false; tl = Math.max(0, Math.min(total, xToT(x))); syncPlay(); updatePlayhead(); }
+
+function select(kind, id, seek) {
+  sel = { kind, id };
+  if (seek) {
+    const i = clipIndex(id), it = items.find(it => it.i === i && (kind === 'trans' ? it.kind === 'trans' : it.kind !== 'trans'));
+    if (it && it.t1 > it.t0) { tl = it.t0 + 1e-4; updatePlayhead(); }
+  }
+  renderTimeline(); renderInspector();
+}
+
+// ================= inspector =================
+const opt = (v, cur, label) => `<option value="${v}"${String(v) === String(cur) ? ' selected' : ''}>${label}</option>`;
+function rng(path, label, v, min, max, step, fmt = 's') {
+  return `<div class="row"><label for="f-${path}">${label}</label><output data-out="${path}" data-fmt="${fmt}">${fmtVal(v, fmt)}</output><input type="range" id="f-${path}" data-path="${path}" min="${min}" max="${max}" step="${step}" value="${v}"></div>`;
+}
+function fmtVal(v, f) { v = +v; return f === 's' ? v.toFixed(1) + 's' : f === '%' ? Math.round(v * 100) + '%' : f === 'px' ? v + ' px' : f === '/s' ? (v ? v + '/s' : 'off') : String(v); }
+function sel_(path, label, cur, opts) { return `<div class="row"><label for="f-${path}">${label}</label><select id="f-${path}" data-path="${path}">${opts.map(o => opt(o[0], cur, o[1])).join('')}</select></div>`; }
+function chk(path, label, v) { return `<label class="check"><input type="checkbox" id="f-${path}" data-path="${path}"${v ? ' checked' : ''}> ${label}</label>`; }
+
+function renderInspector() {
+  const ins = $('insp');
+  let h = `<h1>Pixel Collapse</h1>`;
+  const i = sel ? clipIndex(sel.id) : -1;
+  if (i < 0) sel = null;
+  if (sel && sel.kind === 'clip') {
+    const c = S.clips[i];
+    h += `<div class="group"><div class="label"><span>${esc(TYPES[c.type])} · block ${i + 1}</span></div>`;
+    h += chk('clip.enabled', 'Enabled (off = skipped in playback)', c.enabled);
+    h += rng('clip.hold', 'Hold', c.hold, 0, 10, 0.1);
+    if (c.type === 'text') h += `<textarea id="f-clip.text" data-path="clip.text" spellcheck="false" aria-label="Text">${esc(c.text)}</textarea><div class="hint">Line breaks allowed. Latin-1 characters.</div>`;
+    if (c.type === 'cipher') {
+      h += `<textarea id="f-clip.text" data-path="clip.text" spellcheck="false" aria-label="Source text" placeholder="Empty = encrypt the previous text block">${esc(c.text)}</textarea>`;
+      h += sel_('clip.mode', 'Cipher', c.mode, [['scramble', 'Scramble'], ['shift', 'Letter shift'], ['hex', 'Hex codes']]);
+      if (c.mode === 'shift') h += rng('clip.shift', 'Shift by', c.shift, -13, 13, 1, 'n');
+      if (c.mode === 'scramble') h += `<div class="row"><label for="f-clip.seed">Seed</label><button data-act="reseedClip">New seed</button></div>`;
+      if (c.mode !== 'hex') h += rng('clip.flicker', 'Flicker while holding', c.flicker, 0, 30, 1, '/s');
+      h += `<div class="hint">Shows: ${esc(clipString(i).replace(/\n/g, ' / '))}</div>`;
+    }
+    if (c.type === 'image') {
+      h += `<div class="btns"><button data-act="loadImg">Load image</button><button data-act="sampleImg">Use sample</button></div><div class="hint">Or drop an image onto the canvas.</div>`;
+      h += rng('clip.image.width', 'Width', c.image.width, 8, 160, 1, 'px');
+      h += rng('clip.image.threshold', 'Threshold', c.image.threshold, 1, 254, 1, 'n');
+      h += chk('clip.image.invert', 'Invert (black shapes on white)', c.image.invert);
+    }
+    if (c.type === 'squares' || c.type === 'bigsquare') h += `<div class="hint">Built from the nearest text or cipher block: “${esc(clipString(i).replace(/\n/g, ' / ') || 'none')}”. Square settings are under Look.</div>`;
+    h += `<div class="btns"><button data-act="left" aria-label="Move earlier">◀ Move</button><button data-act="right" aria-label="Move later">Move ▶</button><button data-act="dup">Duplicate</button><button data-act="del">Delete</button></div></div>`;
+  } else if (sel && sel.kind === 'trans') {
+    const c = S.clips[i], en = S.clips.map((d, k) => d.enabled ? k : -1).filter(k => k > i), j = en[0];
+    h += `<div class="group"><div class="label"><span>Transition · ${esc(TYPES[c.type])} ${i + 1} → ${j !== undefined ? esc(TYPES[S.clips[j].type]) + ' ' + (j + 1) : 'end'}</span></div>`;
+    h += rng('trans.dur', 'Duration', c.trans.dur, 0.1, 10, 0.1);
+    h += rng('trans.stagger', 'Stagger spread', c.trans.stagger, 0, 0.95, 0.01, '%');
+    h += rng('trans.cascade', 'Group cascade', c.trans.cascade, 0, 1, 0.01, '%');
+    h += `<div class="hint">Stagger spread = share of the duration used to offset start times. Group cascade = how much whole letters or squares go one after another.</div>`;
+    h += sel_('trans.order', 'Stagger order', c.trans.order, [['rnd', 'Random'], ['sweep', 'Left → right'], ['down', 'Top → bottom'], ['center', 'Center out'], ['edge', 'Edges in']]);
+    h += sel_('trans.axis', 'Axis order', c.trans.axis, [['x', 'X then Y'], ['y', 'Y then X'], ['alt', 'Alternate'], ['rnd', 'Random']]);
+    h += rng('trans.overlap', 'Axis overlap', c.trans.overlap, 0, 1, 0.05, '%');
+    h += sel_('trans.ease', 'Easing', c.trans.ease, [['cubic', 'Cubic in-out'], ['quad', 'Quad in-out'], ['expo', 'Expo in-out'], ['linear', 'Linear']]);
+    h += sel_('trans.match', 'Pixel matching', c.trans.match, [['auto', 'Auto'], ['letters', 'Letter by letter'], ['rows', 'By rows'], ['random', 'Random']]);
+    h += `<div class="hint">Auto: letters collapse into their own squares, squares move as units into the big square (center out when order is Random), same-shaped texts morph letter by letter, everything else by rows.</div>`;
+    h += `<div class="btns"><button data-act="reseedTr">New random seed</button></div></div>`;
+  } else {
+    h += `<div class="hint">Select a block or a transition in the timeline to edit it.</div>`;
+  }
+  const L = S.look;
+  h += `<div class="group"><div class="label"><span>Look</span></div>`;
+  h += chk('look.snap', 'Snap to pixel grid', L.snap) + chk('look.seams', 'Show pixel seams', L.seams);
+  h += sel_('look.uniform', 'Square size', L.uniform ? '1' : '0', [['1', 'Uniform (duplicate to fill)'], ['0', 'Natural ⌊√N⌋']]);
+  h += sel_('look.align', 'Square alignment', L.align, [['bottom', 'Baseline'], ['center', 'Center'], ['top', 'Top']]);
+  h += sel_('look.roundUp', 'Big square grid', L.roundUp ? '1' : '0', [['1', 'Round up (duplicate to fill)'], ['0', 'Round down (overlap)']]);
+  h += sel_('look.assign', 'Big square build', L.assign, [['center', 'Center out'], ['grid', 'Grid packing']]);
+  h += rng('look.gap', 'Gap between squares', L.gap, 0, 4, 1, 'px') + `</div>`;
+  h += `<div class="group"><div class="label"><span>Scene</span></div>`;
+  h += `<input type="text" id="f-scene.name" data-path="scene.name" value="${esc(S.name)}" aria-label="Scene name">`;
+  h += `<div class="btns"><button data-act="save">Save JSON</button><button data-act="load">Load JSON</button><button data-act="copy">Copy JSON</button><button data-act="reset">Example scene</button></div>`;
+  h += `<div class="status" id="status" role="status"></div><div class="hint">The current scene is also kept in this browser automatically.</div></div>`;
+  ins.innerHTML = h;
+}
+function syncInspectorValues() {
+  const i = sel ? clipIndex(sel.id) : -1; if (i < 0) return;
+  const c = S.clips[i];
+  [['clip.hold', c.hold], ['trans.dur', c.trans.dur]].forEach(([p, v]) => {
+    const inp = document.getElementById('f-' + p), out = document.querySelector(`[data-out="${p}"]`);
+    if (inp) inp.value = v; if (out) out.textContent = fmtVal(v, out.dataset.fmt);
+  });
+}
+function targetFor(path) {
+  const [root, ...rest] = path.split('.');
+  let o = root === 'look' ? S.look : root === 'scene' ? S : null;
+  if (root === 'clip' || root === 'trans') { const c = S.clips[clipIndex(sel.id)]; o = root === 'clip' ? c : c.trans; }
+  for (let k = 0; k < rest.length - 1; k++) o = o[rest[k]];
+  return [o, rest[rest.length - 1]];
+}
+$('insp').addEventListener('input', e => {
+  const el = e.target, path = el.dataset.path; if (!path || !sel && !/^(look|scene)/.test(path)) return;
+  const [o, k] = targetFor(path);
+  let v = el.type === 'checkbox' ? el.checked : el.type === 'range' ? parseFloat(el.value) : el.value;
+  if (path === 'look.uniform' || path === 'look.roundUp') v = v === '1';
+  o[k] = v;
+  const out = document.querySelector(`[data-out="${path}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
+  if (path.startsWith('look')) { LC.clear(); MC.clear(); }
+  rebuild();
+  if (el.tagName === 'SELECT' && path === 'clip.mode' || path === 'clip.enabled') renderInspector();
+});
+$('insp').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, i = sel ? clipIndex(sel.id) : -1, c = S.clips[i];
+  if (act === 'del' && c) { S.clips.splice(i, 1); if (!S.clips.length) S.clips.push(makeClip('text')); sel = null; rebuild(); renderInspector(); }
+  else if (act === 'dup' && c) { const d = JSON.parse(JSON.stringify(c)); d.id = newId(); S.clips.splice(i + 1, 0, d); sel = { kind: 'clip', id: d.id }; rebuild(); renderInspector(); }
+  else if ((act === 'left' || act === 'right') && c) { const j = i + (act === 'left' ? -1 : 1); if (j < 0 || j >= S.clips.length) return; S.clips.splice(i, 1); S.clips.splice(j, 0, c); rebuild(); renderInspector(); }
+  else if (act === 'reseedClip' && c) { c.seed = (Math.random() * 1e6) | 0; rebuild(); renderInspector(); }
+  else if (act === 'reseedTr' && c) { c.trans.seed = (Math.random() * 1e6) | 0; rebuild(); }
+  else if (act === 'loadImg') { $('imgFile').click(); }
+  else if (act === 'sampleImg' && c) { c.image.src = 'sample'; c.image.invert = false; LC.clear(); rebuild(); renderInspector(); }
+  else if (act === 'save') saveScene();
+  else if (act === 'load') $('sceneFile').click();
+  else if (act === 'copy') copyScene();
+  else if (act === 'reset') { S = defaultScene(); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); status('Loaded the example scene.'); }
+});
+function status(msg) { const s = $('status'); if (s) s.textContent = msg; }
+
+// ---- add blocks ----
+document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+  const type = b.dataset.add, c = makeClip(type);
+  const i = sel ? clipIndex(sel.id) : -1, at = i >= 0 ? i + 1 : S.clips.length;
+  S.clips.splice(at, 0, c);
+  sel = { kind: 'clip', id: c.id };
+  rebuild(); renderInspector();
+  const it = items.find(it => it.i === at && it.kind === 'clip'); if (it) { tl = it.t0 + 1e-4; updatePlayhead(); }
+}));
+
+// ---- images ----
+function loadImageFile(f, clip) {
+  if (!f || !/^image\//.test(f.type)) { status('That file is not an image. Use a PNG, JPG, GIF or WebP.'); return; }
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = () => {
+    const sc = Math.min(1, 400 / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.naturalWidth * sc)); c.height = Math.max(1, Math.round(im.naturalHeight * sc));
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    const src = c.toDataURL('image/png');
+    const s = sampleImage(c, clip.image.width); let lit = 0;
+    for (let i = 0; i < s.d.length; i += 4) if (0.299 * s.d[i] + 0.587 * s.d[i + 1] + 0.114 * s.d[i + 2] >= clip.image.threshold && s.d[i + 3] >= 128) lit++;
+    clip.image.invert = lit > s.gw * s.gh * 0.5;
+    clip.image.src = src;
+    URL.revokeObjectURL(url);
+    LC.clear(); rebuild(); renderInspector(); status('Loaded ' + f.name);
+  };
+  im.onerror = () => status('Could not read that image. Try a PNG or JPG.');
+  im.src = url;
+}
+$('imgFile').addEventListener('change', e => {
+  const i = sel ? clipIndex(sel.id) : -1, c = S.clips[i];
+  if (c && c.type === 'image') loadImageFile(e.target.files[0], c);
+  e.target.value = '';
+});
 stage.addEventListener('dragover', e => e.preventDefault());
-stage.addEventListener('drop', e => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
-$('sample').onclick = () => { srcImg = makeSample(); $('inv').checked = false; $('imgName').textContent = 'Sample star'; rebuild(false); };
-$('noimg').onclick = () => { srcImg = null; $('imgName').textContent = 'No image. Animation starts from the text.'; rebuild(false); };
+stage.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  let i = sel ? clipIndex(sel.id) : -1;
+  if (i < 0 || S.clips[i].type !== 'image') i = S.clips.findIndex(c => c.type === 'image');
+  if (i < 0) { S.clips.unshift(makeClip('image')); i = 0; }
+  sel = { kind: 'clip', id: S.clips[i].id };
+  loadImageFile(f, S.clips[i]);
+});
 
-// ---- transport ----
-let playing = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-let clock = 0, tl = 0, last = performance.now();
+// ---- scene files ----
+let downloads = null;
+try { window.claude?.use?.('downloads').then(d => { downloads = d; }).catch(() => { }); } catch (e) { }
+const sceneJSON = () => JSON.stringify(S, null, 2);
+const fileBase = () => (S.name || 'scene').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'scene';
+async function saveScene() {
+  const data = sceneJSON(), filename = fileBase() + '.json';
+  if (downloads) {
+    try { await downloads.save({ filename, data }); status('Saved ' + filename); }
+    catch (err) { status(err && err.code === 'declined' ? 'Save cancelled.' : 'Saving is not available here. Use Copy JSON instead.'); }
+    return;
+  }
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    status('Downloaded ' + filename);
+  } catch (e) { status('Download blocked here. Use Copy JSON instead.'); }
+}
+function copyScene() {
+  const data = sceneJSON();
+  try {
+    navigator.clipboard.writeText(data).then(() => status('Scene JSON copied.'), () => status('Copy was blocked. Use Save JSON instead.'));
+  } catch (e) { status('Copy was blocked. Use Save JSON instead.'); }
+}
+$('sceneFile').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try { S = normalizeScene(JSON.parse(rd.result)); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); status('Loaded ' + f.name); fitZoom(); }
+    catch (err) { status('Could not load ' + f.name + ': ' + (err.message || 'invalid JSON')); }
+  };
+  rd.readAsText(f);
+});
+document.addEventListener('paste', e => {
+  if (e.target.closest('textarea, input')) return;
+  const txt = e.clipboardData && e.clipboardData.getData('text');
+  if (!txt || txt.trim()[0] !== '{') return;
+  try { S = normalizeScene(JSON.parse(txt)); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); status('Loaded the pasted scene.'); }
+  catch (err) { status('Pasted text is not a valid scene.'); }
+});
 
-function timelineFrom(c) {
-  const T = scene.total;
-  if (P.loop === 'loop') return c % T;
-  if (P.loop === 'once') return Math.min(c, T);
-  const m = c % (2 * T); return m > T ? 2 * T - m : m;
-}
-function syncUI() {
-  $('play').textContent = playing ? 'Pause' : 'Play';
-  $('scrub').value = Math.round(tl / scene.total * 1000);
-  $('tout').textContent = tl.toFixed(2) + 's';
-}
+// ================= transport =================
+let playing = !matchMedia('(prefers-reduced-motion: reduce)').matches, tl = 0, last = performance.now();
+function syncPlay() { $('play').textContent = playing ? 'Pause' : 'Play'; }
+$('play').onclick = () => { if (!playing && tl >= total) tl = 0; playing = !playing; syncPlay(); };
+$('restart').onclick = () => { tl = 0; playing = true; syncPlay(); };
+$('zoom').addEventListener('input', renderTimeline);
+function fitZoom() { const w = $('tlscroll').clientWidth - 90; $('zoom').value = Math.max(20, Math.min(300, Math.floor(w / Math.max(1, total)))); renderTimeline(); }
+$('fit').onclick = fitZoom;
+window.addEventListener('keydown', e => {
+  if (e.target.closest('textarea, input, select')) return;
+  if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && sel && sel.kind === 'clip') { e.preventDefault(); const b = document.createElement('button'); b.dataset.act = 'del'; $('insp').appendChild(b); b.click(); b.remove(); }
+});
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  if (playing) {
-    clock += dt * P.speed;
-    tl = timelineFrom(clock);
-    if (P.loop === 'once' && clock >= scene.total) playing = false;
-    syncUI();
+  if (playing && total > 0) {
+    tl += dt;
+    if (tl >= total) { if ($('loop').checked) tl %= total; else { tl = total; playing = false; syncPlay(); } }
+    updatePlayhead();
   }
-  draw();
+  draw(Math.min(tl, Math.max(0, total - 1e-6)));
   requestAnimationFrame(frame);
 }
 
-function rebuild(keepTime) {
-  readParams(); build();
-  if (!keepTime) { clock = 0; }
-  tl = timelineFrom(clock);
-  syncUI(); draw();
-}
-
-document.querySelectorAll('.rail input, .rail select').forEach(el => {
-  if (el.id === 'scrub' || el.type === 'file') return;
-  el.addEventListener('input', () => rebuild(true));
-});
-$('text').addEventListener('input', () => { try { localStorage.setItem('pc-text', $('text').value); } catch (e) {} rebuild(false); });
-try { const saved = localStorage.getItem('pc-text'); if (saved) $('text').value = saved; } catch (e) {}
-$('play').onclick = () => { if (!playing && P.loop === 'once' && clock >= scene.total) clock = 0; playing = !playing; syncUI(); };
-$('restart').onclick = () => { clock = 0; tl = 0; playing = true; syncUI(); };
-$('reseed').onclick = () => { seed = (Math.random() * 1e9) | 0; rebuild(true); };
-$('scrub').addEventListener('input', e => {
-  playing = false; tl = e.target.value / 1000 * scene.total; clock = tl; syncUI();
-});
-window.addEventListener('keydown', e => {
-  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-  if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
-  else if (e.key === 'r' || e.key === 'R') $('restart').click();
-});
-
 new ResizeObserver(resize).observe(stage);
-rebuild(false);
 resize();
+rebuild();
+fitZoom();
+renderInspector();
+syncPlay();
 requestAnimationFrame(frame);
 </script>
 
