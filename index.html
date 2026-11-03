@@ -83,6 +83,15 @@ button { background: var(--bg); color: var(--fg); border: 1px solid var(--line);
 button:hover { border-color: var(--muted); }
 button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; min-width: 7ch; }
 .hint { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.kd { position: absolute; bottom: 5px; width: 7px; height: 7px; margin-left: -4px; background: var(--oil4); transform: rotate(45deg); pointer-events: none; }
+.trans .fo { position: absolute; left: 6px; top: 5px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--fg); background: var(--bg); padding: 0 3px; }
+.kv { display: flex; gap: 6px; align-items: center; }
+button.key { padding: 1px 5px; font-size: 10px; line-height: 1.2; color: var(--muted); }
+button.key.has { color: var(--oil4); border-color: #6b5e35; }
+button.key.on { background: var(--oil4); color: var(--bg); border-color: var(--oil4); }
+.ramp { position: static; inset: auto; width: 100%; height: 132px; display: block; flex: none; border: 1px solid var(--line); background: var(--bg); cursor: crosshair; touch-action: none; }
+.keynav { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 10px; }
+.keynav output { margin-left: auto; font-variant-numeric: tabular-nums; }
 .status { color: var(--fg); font-size: 11px; min-height: 1.4em; }
 @media (max-width: 760px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 46vh auto auto; height: auto; min-height: 100%; }
@@ -155,7 +164,29 @@ const num = (v, d, lo, hi) => { v = parseFloat(v); return isFinite(v) ? Math.min
 const TYPES = { text: 'Text', cipher: 'Cipher', image: 'Image', squares: 'Squares', bigsquare: 'Big square' };
 let uidN = 0;
 const newId = () => 'c' + Date.now().toString(36) + (uidN++).toString(36);
-const defTrans = (o = {}) => Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o);
+// Falloff: per-pixel progress from a spatial field instead of the plain stagger.
+const FO_TYPES = { plain: 'Plain', linear: 'Linear', spherical: 'Spherical', box: 'Box' };
+const FO_PARAMS = { sweep: 0, soft: 0.35, angle: 45, cx: 0, cy: 0, jitter: 0 };
+const defFo = () => ({ type: 'plain', sweep: 0, soft: 0.35, angle: 45, cx: 0, cy: 0, jitter: 0, invert: false, interp: 'linear', k: { sweep: [[0, 0], [1, 1]] }, ramp: [[0, 0], [1, 1]] });
+function cleanFo(o) {
+  if (!o || typeof o !== 'object') return defFo();
+  const f = Object.assign(defFo(), o);
+  if (!FO_TYPES[f.type]) f.type = 'plain';
+  for (const p in FO_PARAMS) f[p] = num(f[p], FO_PARAMS[p], -1e4, 1e4);
+  f.invert = !!f.invert; f.interp = f.interp === 'ease' ? 'ease' : 'linear';
+  const k = {};
+  if (o.k && typeof o.k === 'object') for (const p in FO_PARAMS) if (Array.isArray(o.k[p])) {
+    const a = o.k[p].filter(e => Array.isArray(e) && isFinite(e[0]) && isFinite(e[1])).map(e => [clamp01(+e[0]), +e[1]]).sort((x, y) => x[0] - y[0]);
+    if (a.length) k[p] = a;
+  }
+  f.k = o.k && typeof o.k === 'object' ? k : defFo().k;
+  let r = Array.isArray(o.ramp) ? o.ramp.filter(e => Array.isArray(e) && isFinite(e[0]) && isFinite(e[1])).map(e => [clamp01(+e[0]), clamp01(+e[1])]).sort((x, y) => x[0] - y[0]) : [];
+  if (r.length < 2) r = [[0, 0], [1, 1]];
+  r[0][0] = 0; r[r.length - 1][0] = 1;
+  f.ramp = r;
+  return f;
+}
+const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o); t.fo = cleanFo(o.fo); return t; };
 const defImage = (o = {}) => Object.assign({ src: 'sample', width: 32, threshold: 128, invert: false }, o);
 function makeClip(type, o = {}) {
   const c = { id: newId(), type, enabled: true, hold: 1.5 };
@@ -175,7 +206,7 @@ function defaultScene() {
     clips: [
       makeClip('image', { hold: 1.2, trans: { dur: 2.2 } }),
       makeClip('text', { text: 'HELLO WORLD', hold: 1.8, trans: { dur: 1.2, order: 'sweep', stagger: 0.6 } }),
-      makeClip('cipher', { hold: 1.6, trans: { dur: 2, stagger: 0.5 } }),
+      makeClip('cipher', { hold: 1.6, trans: { dur: 2.2, fo: { type: 'linear', angle: 35, soft: 0.45 } } }),
       makeClip('text', { text: 'PIXEL\nCOLLAPSE', hold: 1.6, trans: { dur: 2.2 } }),
       makeClip('squares', { hold: 0.8, trans: { dur: 2.4, stagger: 0.6 } }),
       makeClip('bigsquare', { hold: 2 }),
@@ -494,12 +525,24 @@ function axisFor(i, mode, rand) { return mode === 'x' ? 0 : mode === 'y' ? 1 : m
 
 const MC = new Map();
 function buildMovers(A, B, tr, seedKey) {
-  const key = A.key + '>' + B.key + '>' + JSON.stringify(tr) + seedKey;
+  const key = A.key + '>' + B.key + '>' + JSON.stringify(tr, (k, v) => k === 'fo' ? undefined : v) + seedKey;
   if (MC.has(key)) return MC.get(key);
   const rand = mulberry32(hashStr(seedKey) + (tr.seed | 0) * 9973);
   const M = matchFor(A, B, tr, rand), P = M.pairs, n = P.length;
-  const mv = { n, fx: new Float32Array(n), fy: new Float32Array(n), tx: new Float32Array(n), ty: new Float32Array(n), rank: new Float32Array(n), axis: new Uint8Array(n) };
+  const mv = { n, fx: new Float32Array(n), fy: new Float32Array(n), tx: new Float32Array(n), ty: new Float32Array(n), rank: new Float32Array(n), axis: new Uint8Array(n), qx: new Float32Array(n), qy: new Float32Array(n), jit: new Float32Array(n), bx: 0, by: 0, bw: 1, bh: 1 };
   P.forEach((p, i) => { mv.fx[i] = p.a.x; mv.fy[i] = p.a.y; mv.tx[i] = p.b.x; mv.ty[i] = p.b.y; });
+  { // falloff sample point: where the pixel starts (rigid squares sample their center so they move as one)
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    const jr = mulberry32(hashStr(seedKey) ^ 0x5bd1e995);
+    P.forEach((p, i) => {
+      const g = M.rigid && p.g >= 0 && M.gPos && M.gPos[p.g];
+      const qx = g ? g[0] : p.a.x, qy = g ? g[1] : p.a.y;
+      mv.qx[i] = qx; mv.qy[i] = qy; mv.jit[i] = jr();
+      x0 = Math.min(x0, p.a.x, qx); y0 = Math.min(y0, p.a.y, qy); x1 = Math.max(x1, p.a.x + 1, qx); y1 = Math.max(y1, p.a.y + 1, qy);
+    });
+    if (n) { mv.bx = x0; mv.by = y0; mv.bw = Math.max(1, x1 - x0); mv.bh = Math.max(1, y1 - y0); }
+    for (let i = 0; i < n; i++) { mv.qx[i] -= mv.bx - 0.5; mv.qy[i] -= mv.by - 0.5; }
+  }
   if (M.gPos && M.gPos.length) {
     const G = M.gPos.length;
     const gr = M.gOrder && M.gOrder[0] !== null && tr.order === 'rnd' ? Float32Array.from(M.gOrder) : rankBy(M.gPos, tr.order, rand, 0, 0);
@@ -523,6 +566,72 @@ function buildMovers(A, B, tr, seedKey) {
   MC.set(key, mv);
   if (MC.size > 60) MC.delete(MC.keys().next().value);
   return mv;
+}
+
+// ================= falloff =================
+const smooth = s => s * s * (3 - 2 * s);
+function foValue(fo, p, tau) {
+  const K = fo.k && fo.k[p];
+  if (!K || !K.length) return fo[p];
+  if (tau <= K[0][0]) return K[0][1];
+  for (let j = 1; j < K.length; j++) if (tau <= K[j][0]) {
+    const a = K[j - 1], b = K[j], s = (tau - a[0]) / Math.max(1e-6, b[0] - a[0]);
+    return a[1] + (b[1] - a[1]) * (fo.interp === 'ease' ? smooth(s) : s);
+  }
+  return K[K.length - 1][1];
+}
+// Monotone cubic (Fritsch–Carlson) through the ramp points, baked into a LUT.
+const LUTC = new Map();
+function rampLUT(r) {
+  const key = JSON.stringify(r);
+  if (LUTC.has(key)) return LUTC.get(key);
+  const n = r.length, xs = r.map(e => e[0]), ys = r.map(e => e[1]), d = [], m = new Array(n).fill(0);
+  for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / Math.max(1e-6, xs[i + 1] - xs[i]));
+  if (n === 2) { m[0] = m[1] = d[0]; }
+  else {
+    m[0] = d[0]; m[n - 1] = d[n - 2];
+    for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i < n - 1; i++) {
+      if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; }
+      const a = m[i] / d[i], b = m[i + 1] / d[i], h = a * a + b * b;
+      if (h > 9) { const s = 3 / Math.sqrt(h); m[i] = s * a * d[i]; m[i + 1] = s * b * d[i]; }
+    }
+  }
+  const N = 256, L = new Float32Array(N + 1);
+  let j = 0;
+  for (let k = 0; k <= N; k++) {
+    const x = k / N;
+    while (j < n - 2 && x > xs[j + 1]) j++;
+    const hh = Math.max(1e-6, xs[j + 1] - xs[j]), s = clamp01((x - xs[j]) / hh), s2 = s * s, s3 = s2 * s;
+    L[k] = clamp01((2 * s3 - 3 * s2 + 1) * ys[j] + (s3 - 2 * s2 + s) * hh * m[j] + (-2 * s3 + 3 * s2) * ys[j + 1] + (s3 - s2) * hh * m[j + 1]);
+  }
+  const lin = n === 2 && ys[0] === 0 && ys[1] === 1;
+  const fn = lin ? (u => u) : (u => { const x = clamp01(u) * N, i = Math.min(N - 1, x | 0); return L[i] + (L[i + 1] - L[i]) * (x - i); });
+  fn.L = L;
+  LUTC.set(key, fn); if (LUTC.size > 40) LUTC.delete(LUTC.keys().next().value);
+  return fn;
+}
+// Field parameters at normalized transition time tau, for one mover set.
+function foField(fo, mv, tau) {
+  const v = {}; for (const p in FO_PARAMS) v[p] = foValue(fo, p, tau);
+  const w = mv.bw, h = mv.bh, soft = Math.max(0.01, v.soft), j = Math.max(0, v.jitter);
+  const F = { type: fo.type, inv: fo.invert, soft, j, invSoft: 1 / soft, A: v.sweep * (1 + soft + j) - j / 2, v };
+  const cs = [[0, 0], [w, 0], [0, h], [w, h]];
+  if (fo.type === 'linear') {
+    const a = v.angle * Math.PI / 180; F.c = Math.cos(a); F.s = Math.sin(a);
+    const ds = cs.map(q => q[0] * F.c + q[1] * F.s); F.d0 = Math.min(...ds); F.dk = 1 / Math.max(1e-6, Math.max(...ds) - F.d0);
+  } else {
+    F.Cx = v.cx * w / 2 + w / 2; F.Cy = v.cy * h / 2 + h / 2; // cx/cy: -1..1 across the shape
+    if (fo.type === 'spherical') F.R = 1 / Math.max(1e-6, ...cs.map(q => Math.hypot(q[0] - F.Cx, q[1] - F.Cy)));
+    else { F.hx = 2 / w; F.hy = 2 / h; F.R = 1 / Math.max(1e-6, ...cs.map(q => Math.max(Math.abs(q[0] - F.Cx) * F.hx, Math.abs(q[1] - F.Cy) * F.hy))); }
+  }
+  return F;
+}
+function foDist(F, x, y) {
+  const d = F.type === 'linear' ? ((x * F.c + y * F.s) - F.d0) * F.dk
+    : F.type === 'spherical' ? Math.hypot(x - F.Cx, y - F.Cy) * F.R
+    : Math.max(Math.abs(x - F.Cx) * F.hx, Math.abs(y - F.Cy) * F.hy) * F.R;
+  return F.inv ? 1 - d : d;
 }
 
 // ================= sequence =================
@@ -794,8 +903,16 @@ function draw(t, delta = 0) {
     if (!m.n) pts = (lt < D / 2 ? seg.A : seg.B).pts;
     else {
       const sp = tr.stagger * D, md = Math.max(0.03, D - sp), a = 0.5 + 0.5 * tr.overlap, e = EASE[tr.ease] || EASE.cubic;
+      const fo = tr.fo, ramp = rampLUT(fo.ramp), plain = fo.type === 'plain', FC = new Map();
+      const fieldAt = ltx => { let F = FC.get(ltx); if (!F) { F = foField(fo, m, clamp01(ltx / D)); FC.set(ltx, F); } return F; };
       const pos = (i, ltx, out) => {
-        const u = (ltx - m.rank[i] * sp) / md;
+        let u;
+        if (plain) { u = (ltx - m.rank[i] * sp) / md; if (u > 0 && u < 1) u = ramp(u); }
+        else {
+          const F = fieldAt(ltx), dn = foDist(F, m.qx[i], m.qy[i]) + F.j * (m.jit[i] - 0.5);
+          u = (F.A - dn) * F.invSoft;
+          u = u <= 0 ? 0 : u >= 1 ? 1 : ramp(u);
+        }
         if (u <= 0) { out[0] = m.fx[i]; out[1] = m.fy[i]; }
         else if (u >= 1) { out[0] = m.tx[i]; out[1] = m.ty[i]; }
         else {
@@ -845,8 +962,40 @@ function draw(t, delta = 0) {
   };
   if (pts) for (const q of pts) plot(q.x, q.y);
   else for (let i = 0; i < m.n; i++) plot(P[i * 2], P[i * 2 + 1]);
+  if (seg.kind === 'trans' && m && m.n && showGuide && seg.tr.fo.type !== 'plain' && sel && sel.kind === 'trans' && sel.id === S.clips[seg.i].id) drawGuide(seg, m, t - seg.t0, p, ox, oy);
   const h = (seg.kind === 'hold' ? 'Hold · ' : 'Transition · ') + hud + ' · ' + count + ' px';
   if (h !== lastHud) { $('hud').textContent = h; lastHud = h; }
+}
+
+let showGuide = true;
+function drawGuide(seg, m, lt, p, ox, oy) {
+  const F = foField(seg.tr.fo, m, clamp01(lt / (seg.t1 - seg.t0)));
+  const X = x => ox + (m.bx + x) * p, Y = y => oy + (m.by + y) * p;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  ctx.save(); ctx.lineWidth = 1.25 * dpr;
+  // outline of the shape bounds
+  ctx.strokeStyle = 'rgba(160,190,255,.18)'; ctx.setLineDash([]); ctx.strokeRect(X(0), Y(0), m.bw * p, m.bh * p);
+  const iso = [[F.A, [6 * dpr, 5 * dpr], 'rgba(120,200,255,.8)'], [F.A - F.soft, [], 'rgba(255,214,120,.9)']];
+  for (const [dn0, dash, col] of iso) {
+    const d = F.inv ? 1 - dn0 : dn0;
+    ctx.strokeStyle = col; ctx.setLineDash(dash); ctx.beginPath();
+    if (F.type === 'linear') {
+      const raw = F.d0 + d / F.dk, cx = F.c * raw, cy = F.s * raw, L = 4 * Math.max(m.bw, m.bh);
+      ctx.moveTo(X(cx - F.s * L), Y(cy + F.c * L)); ctx.lineTo(X(cx + F.s * L), Y(cy - F.c * L));
+    } else if (d > 0) {
+      if (F.type === 'spherical') ctx.arc(X(F.Cx), Y(F.Cy), d / F.R * p, 0, Math.PI * 2);
+      else { const hx = d / F.R / F.hx, hy = d / F.R / F.hy; ctx.rect(X(F.Cx - hx), Y(F.Cy - hy), 2 * hx * p, 2 * hy * p); }
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]); ctx.strokeStyle = 'rgba(255,214,120,.9)'; ctx.beginPath();
+  if (F.type === 'linear') { // direction arrow from the shape center
+    const cx = X(m.bw / 2), cy = Y(m.bh / 2), r = 14 * dpr, ex = cx + F.c * r * 2, ey = cy + F.s * r * 2;
+    ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
+    ctx.moveTo(ex, ey); ctx.lineTo(ex - (F.c * 7 - F.s * 5) * dpr, ey - (F.s * 7 + F.c * 5) * dpr);
+    ctx.moveTo(ex, ey); ctx.lineTo(ex - (F.c * 7 + F.s * 5) * dpr, ey - (F.s * 7 - F.c * 5) * dpr);
+  } else { const cx = X(F.Cx), cy = Y(F.Cy), r = 6 * dpr; ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); }
+  ctx.stroke(); ctx.restore();
 }
 
 // ================= timeline =================
@@ -895,7 +1044,10 @@ function renderTimeline() {
     const isSelClip = sel && sel.kind === 'clip' && sel.id === c.id, isSelTr = sel && sel.kind === 'trans' && sel.id === c.id;
     if (it.kind === 'clip') h += `<div class="blk clip${isSelClip ? ' sel' : ''}" data-k="clip" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="${esc(TYPES[c.type])}: ${esc(snippet(it.i))}"><div class="bt">${esc(TYPES[c.type])}</div><div class="bs">${esc(snippet(it.i))}</div><div class="bd">${c.hold.toFixed(1)}s</div><div class="grip" data-grip="hold"></div></div>`;
     else if (it.kind === 'off') h += `<div class="blk off${isSelClip ? ' sel' : ''}" data-k="off" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="${esc(TYPES[c.type])} (off)"><div class="bt">${esc(TYPES[c.type])} off</div></div>`;
-    else h += `<div class="blk trans${isSelTr ? ' sel' : ''}" data-k="trans" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="Transition ${c.trans.dur.toFixed(1)}s"><div class="bd">${c.trans.dur.toFixed(1)}s</div><div class="grip" data-grip="dur"></div></div>`;
+    else {
+      const fo = c.trans.fo, kd = fo.type === 'plain' ? '' : foKeyTimes(fo).map(k => `<i class="kd" style="left:calc(${(k * 100).toFixed(2)}% + ${(5 - 10 * k).toFixed(1)}px)"></i>`).join('');
+      h += `<div class="blk trans${isSelTr ? ' sel' : ''}" data-k="trans" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="Transition ${c.trans.dur.toFixed(1)}s · ${FO_TYPES[fo.type]} falloff">${fo.type !== 'plain' && w > 40 ? `<span class="fo">${FO_TYPES[fo.type]}</span>` : ''}${kd}<div class="bd">${c.trans.dur.toFixed(1)}s</div><div class="grip" data-grip="dur"></div></div>`;
+    }
   }
   { const T = S.look.trail, endX = (items.filter(it => it.t1 > it.t0).pop() || { x1: 0 }).x1;
     const ts = Math.max(0, Math.min(T.start, total)), te = Math.max(ts, Math.min(T.end, total));
@@ -999,7 +1151,7 @@ const opt = (v, cur, label) => `<option value="${v}"${String(v) === String(cur) 
 function rng(path, label, v, min, max, step, fmt = 's') {
   return `<div class="row"><label for="f-${path}">${label}</label><output data-out="${path}" data-fmt="${fmt}">${fmtVal(v, fmt)}</output><input type="range" id="f-${path}" data-path="${path}" min="${min}" max="${max}" step="${step}" value="${v}"></div>`;
 }
-function fmtVal(v, f) { v = +v; return f === 's' ? v.toFixed(v < 1 ? 2 : 1) + 's' : f === '%' ? Math.round(v * 100) + '%' : f === 'px' ? v + ' px' : f === '/s' ? (v ? v + '/s' : 'off') : f === 'x' ? v.toFixed(2) + '×' : String(v); }
+function fmtVal(v, f) { v = +v; return f === 's' ? v.toFixed(v < 1 ? 2 : 1) + 's' : f === '%' ? Math.round(v * 100) + '%' : f === 'px' ? v + ' px' : f === '/s' ? (v ? v + '/s' : 'off') : f === 'x' ? v.toFixed(2) + '×' : f === 'deg' ? Math.round(v) + '°' : f === 'f2' ? v.toFixed(2) : String(v); }
 function sel_(path, label, cur, opts) { return `<div class="row"><label for="f-${path}">${label}</label><select id="f-${path}" data-path="${path}">${opts.map(o => opt(o[0], cur, o[1])).join('')}</select></div>`; }
 function chk(path, label, v) { return `<label class="check"><input type="checkbox" id="f-${path}" data-path="${path}"${v ? ' checked' : ''}> ${label}</label>`; }
 
@@ -1049,11 +1201,27 @@ function renderInspector() {
   } else if (sel && sel.kind === 'trans') {
     const c = S.clips[i], en = S.clips.map((d, k) => d.enabled ? k : -1).filter(k => k > i), j = en[0];
     h += `<div class="group"><div class="label"><span>Transition · ${esc(TYPES[c.type])} ${i + 1} → ${j !== undefined ? esc(TYPES[S.clips[j].type]) + ' ' + (j + 1) : 'end'}</span></div>`;
+    const fo = c.trans.fo, tau = curTau(i);
     h += rng('trans.dur', 'Duration', c.trans.dur, 0.1, 10, 0.1);
-    h += rng('trans.stagger', 'Stagger spread', c.trans.stagger, 0, 0.95, 0.01, '%');
-    h += rng('trans.cascade', 'Group cascade', c.trans.cascade, 0, 1, 0.01, '%');
-    h += `<div class="hint">Stagger spread = share of the duration used to offset start times. Group cascade = how much whole letters or squares go one after another.</div>`;
-    h += sel_('trans.order', 'Stagger order', c.trans.order, [['rnd', 'Random'], ['sweep', 'Left → right'], ['down', 'Top → bottom'], ['center', 'Center out'], ['edge', 'Edges in']]);
+    h += sel_('trans.fo.type', 'Falloff', fo.type, Object.entries(FO_TYPES).map(([k, v]) => [k, v + ' falloff']));
+    if (fo.type === 'plain') {
+      h += rng('trans.stagger', 'Stagger spread', c.trans.stagger, 0, 0.95, 0.01, '%');
+      h += rng('trans.cascade', 'Group cascade', c.trans.cascade, 0, 1, 0.01, '%');
+      h += `<div class="hint">Stagger spread = share of the duration used to offset start times. Group cascade = how much whole letters or squares go one after another.</div>`;
+      h += sel_('trans.order', 'Stagger order', c.trans.order, [['rnd', 'Random'], ['sweep', 'Left → right'], ['down', 'Top → bottom'], ['center', 'Center out'], ['edge', 'Edges in']]);
+    } else {
+      h += `<div class="keynav"><button data-act="kprev" title="Previous key">◂ key</button><button data-act="knext" title="Next key">key ▸</button><output id="foTau">${Math.round(tau * 100)}%</output></div>`;
+      h += foRow(fo, 'sweep', 'Sweep', 0, 1, 0.005, '%', tau) + foRow(fo, 'soft', 'Softness', 0.02, 1, 0.01, '%', tau);
+      if (fo.type === 'linear') h += foRow(fo, 'angle', 'Direction', -180, 180, 1, 'deg', tau);
+      else h += foRow(fo, 'cx', 'Center X', -1, 1, 0.01, 'f2', tau) + foRow(fo, 'cy', 'Center Y', -1, 1, 0.01, 'f2', tau);
+      h += foRow(fo, 'jitter', 'Jitter', 0, 1, 0.01, '%', tau);
+      h += chk('trans.fo.invert', 'Invert (start from the far side)', fo.invert);
+      h += sel_('trans.fo.interp', 'Key interpolation', fo.interp, [['linear', 'Linear'], ['ease', 'Ease in-out']]);
+      h += `<div class="hint">Sweep moves the falloff across the shape: 0 = nothing has moved, 100% = everything has arrived. ◆ sets or removes a key at the playhead (alt-click clears that parameter). Once a parameter has keys, moving its slider keys it automatically. Linear 45° = top left → bottom right. Center −1/−1 = top left corner.</div>`;
+    }
+    h += `<div class="label" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Remap ramp</div><canvas class="ramp" id="ramp" aria-label="Falloff remap curve"></canvas>`;
+    h += `<div class="btns">${[['linear', 'Linear'], ['smooth', 'Smooth'], ['in', 'Ease in'], ['out', 'Ease out'], ['hard', 'Hard']].map(([k, v]) => `<button data-ramp="${k}">${v}</button>`).join('')}</div>`;
+    h += `<div class="hint">Maps falloff → progress per pixel. Click to add a point, drag to move, double-click to remove.</div>`;
     h += sel_('trans.axis', 'Axis order', c.trans.axis, [['x', 'X then Y'], ['y', 'Y then X'], ['alt', 'Alternate'], ['rnd', 'Random']]);
     h += rng('trans.overlap', 'Axis overlap', c.trans.overlap, 0, 1, 0.05, '%');
     h += sel_('trans.ease', 'Easing', c.trans.ease, [['cubic', 'Cubic in-out'], ['quad', 'Quad in-out'], ['expo', 'Expo in-out'], ['linear', 'Linear']]);
@@ -1077,7 +1245,85 @@ function renderInspector() {
   h += `<div class="btns"><button data-act="save">Save JSON</button><button data-act="load">Load JSON</button><button data-act="copy">Copy JSON</button><button data-act="reset">Example scene</button></div>`;
   h += `<div class="status" id="status" role="status"></div><div class="hint">The current scene is also kept in this browser automatically.</div></div>`;
   ins.innerHTML = h;
+  drawRamp();
 }
+function curTau(i) { const s = segs.find(s => s.kind === 'trans' && s.i === i); return s ? clamp01((tl - s.t0) / Math.max(1e-6, s.t1 - s.t0)) : 0; }
+function foKeyTimes(fo) { const s = new Set(); for (const p in fo.k) if (p !== 'sweep' || fo.type !== 'plain') fo.k[p].forEach(k => s.add(Math.round(k[0] * 1000) / 1000)); return [...s].sort((a, b) => a - b); }
+function keyState(fo, p, tau) { const K = fo.k[p]; return !K || !K.length ? '' : K.some(k => Math.abs(k[0] - tau) < 0.006) ? ' on' : ' has'; }
+function foRow(fo, p, label, min, max, step, fmt, tau) {
+  const v = foValue(fo, p, tau);
+  return `<div class="row"><label for="fo-${p}">${label}</label><span class="kv"><output data-out="fo.${p}" data-fmt="${fmt}">${fmtVal(v, fmt)}</output><button class="key${keyState(fo, p, tau)}" data-key="${p}" title="Keyframe ${label} at the playhead" aria-label="Keyframe ${label}">◆</button></span><input type="range" id="fo-${p}" data-fo="${p}" min="${min}" max="${max}" step="${step}" value="${v}"></div>`;
+}
+function setKey(fo, p, tau, v) {
+  const K = fo.k[p] || (fo.k[p] = []);
+  const j = K.findIndex(k => Math.abs(k[0] - tau) < 0.006);
+  if (j >= 0) K[j][1] = v; else { K.push([Math.round(tau * 1000) / 1000, v]); K.sort((a, b) => a[0] - b[0]); }
+}
+let foSyncT = -1;
+function syncFoUI(force) {
+  if (!sel || sel.kind !== 'trans') return;
+  const i = clipIndex(sel.id); if (i < 0) return;
+  const fo = S.clips[i].trans.fo; if (fo.type === 'plain') return;
+  const tau = curTau(i); if (!force && tau === foSyncT) return; foSyncT = tau;
+  const o = $('foTau'); if (o) o.textContent = Math.round(tau * 100) + '%';
+  document.querySelectorAll('#insp [data-fo]').forEach(el => {
+    const p = el.dataset.fo, v = foValue(fo, p, tau);
+    if (el !== foDragEl) el.value = v;
+    const out = document.querySelector(`[data-out="fo.${p}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
+    const b = document.querySelector(`#insp [data-key="${p}"]`); if (b) b.className = 'key' + keyState(fo, p, tau);
+  });
+}
+let foDragEl = null;
+document.addEventListener('pointerup', () => { foDragEl = null; });
+// ---- ramp editor ----
+const RAMP_PRESETS = { linear: [[0, 0], [1, 1]], smooth: [[0, 0], [0.25, 0.08], [0.75, 0.92], [1, 1]], in: [[0, 0], [0.55, 0.18], [1, 1]], out: [[0, 0], [0.45, 0.82], [1, 1]], hard: [[0, 0], [0.4, 0.02], [0.6, 0.98], [1, 1]] };
+const RP = 9;
+function rampCtx() {
+  const cv2 = $('ramp'); if (!cv2) return null;
+  const r = cv2.getBoundingClientRect(), dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = Math.max(10, Math.round(r.width * dpr)), h = Math.max(10, Math.round(r.height * dpr));
+  if (cv2.width !== w || cv2.height !== h) { cv2.width = w; cv2.height = h; }
+  return { cv2, g: cv2.getContext('2d'), w, h, dpr, cw: r.width, ch: r.height };
+}
+function drawRamp() {
+  const R = rampCtx(); if (!R || !sel || sel.kind !== 'trans') return;
+  const i = clipIndex(sel.id); if (i < 0) return;
+  const fo = S.clips[i].trans.fo, { g, w, h, dpr } = R, pd = RP * dpr;
+  const X = x => pd + x * (w - 2 * pd), Y = y => h - pd - y * (h - 2 * pd);
+  g.clearRect(0, 0, w, h);
+  g.strokeStyle = '#24252a'; g.lineWidth = dpr;
+  for (let k = 0; k <= 4; k++) { g.beginPath(); g.moveTo(X(k / 4), Y(0)); g.lineTo(X(k / 4), Y(1)); g.moveTo(X(0), Y(k / 4)); g.lineTo(X(1), Y(k / 4)); g.stroke(); }
+  g.setLineDash([3 * dpr, 3 * dpr]); g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(1), Y(1)); g.stroke(); g.setLineDash([]);
+  const fn = rampLUT(fo.ramp);
+  const grd = g.createLinearGradient(X(0), 0, X(1), 0); grd.addColorStop(0, '#f7a6c8'); grd.addColorStop(.33, '#b48cf2'); grd.addColorStop(.66, '#7fd8f0'); grd.addColorStop(1, '#f2dc8c');
+  g.strokeStyle = grd; g.lineWidth = 2 * dpr; g.beginPath();
+  for (let k = 0; k <= 128; k++) { const x = k / 128, y = fn(x); k ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); }
+  g.stroke();
+  fo.ramp.forEach((q, k) => { g.fillStyle = k === rampDrag?.k ? '#fff' : '#000'; g.strokeStyle = '#fff'; g.lineWidth = 1.5 * dpr; g.beginPath(); g.arc(X(q[0]), Y(q[1]), 4 * dpr, 0, 7); g.fill(); g.stroke(); });
+}
+let rampDrag = null;
+function rampPt(e) { const R = rampCtx(), r = R.cv2.getBoundingClientRect(); return [clamp01((e.clientX - r.left - RP) / (r.width - 2 * RP)), clamp01(1 - (e.clientY - r.top - RP) / (r.height - 2 * RP)), r]; }
+function rampHit(fo, e) { const [x, y, r] = rampPt(e), sx = r.width - 2 * RP, sy = r.height - 2 * RP; let best = -1, bd = 10; fo.ramp.forEach((q, k) => { const d = Math.hypot((q[0] - x) * sx, (q[1] - y) * sy); if (d < bd) { bd = d; best = k; } }); return best; }
+$('insp').addEventListener('pointerdown', e => {
+  if (e.target.dataset && e.target.dataset.fo) foDragEl = e.target;
+  if (e.target.id !== 'ramp' || !sel || sel.kind !== 'trans') return;
+  const fo = S.clips[clipIndex(sel.id)].trans.fo; let k = rampHit(fo, e);
+  if (k < 0) { const [x, y] = rampPt(e); if (x <= 0.005 || x >= 0.995) return; fo.ramp.push([x, y]); fo.ramp.sort((a, b) => a[0] - b[0]); k = fo.ramp.findIndex(q => q[0] === x && q[1] === y); }
+  rampDrag = { k }; e.target.setPointerCapture(e.pointerId); drawRamp(); scheduleSave();
+});
+$('insp').addEventListener('pointermove', e => {
+  if (!rampDrag || e.target.id !== 'ramp') return;
+  const fo = S.clips[clipIndex(sel.id)].trans.fo, R = fo.ramp, k = rampDrag.k, [x, y] = rampPt(e);
+  R[k][1] = Math.round(y * 1000) / 1000;
+  if (k > 0 && k < R.length - 1) R[k][0] = Math.round(Math.min(R[k + 1][0] - 0.01, Math.max(R[k - 1][0] + 0.01, x)) * 1000) / 1000;
+  drawRamp(); scheduleSave();
+});
+$('insp').addEventListener('pointerup', () => { if (rampDrag) { rampDrag = null; drawRamp(); } });
+$('insp').addEventListener('dblclick', e => {
+  if (e.target.id !== 'ramp' || !sel || sel.kind !== 'trans') return;
+  const fo = S.clips[clipIndex(sel.id)].trans.fo, k = rampHit(fo, e);
+  if (k > 0 && k < fo.ramp.length - 1) { fo.ramp.splice(k, 1); drawRamp(); scheduleSave(); }
+});
 function trailRangeText() { const T = S.look.trail, s = Math.max(0, Math.min(T.start, total)), e = Math.max(s, Math.min(T.end, total)); return s.toFixed(1) + '–' + e.toFixed(1) + 's'; }
 function syncTrailRange() { const o = $('trailRange'); if (o) o.textContent = trailRangeText(); }
 function syncInspectorValues() {
@@ -1096,6 +1342,11 @@ function targetFor(path) {
   return [o, rest[rest.length - 1]];
 }
 $('insp').addEventListener('input', e => {
+  if (e.target.dataset.fo && sel && sel.kind === 'trans') {
+    const i = clipIndex(sel.id), fo = S.clips[i].trans.fo, p = e.target.dataset.fo, v = parseFloat(e.target.value), tau = curTau(i);
+    if (fo.k[p] && fo.k[p].length) setKey(fo, p, tau, v); else fo[p] = v;
+    foDragEl = e.target; syncFoUI(true); renderTimeline(); scheduleSave(); return;
+  }
   const el = e.target, path = el.dataset.path; if (!path || !sel && !/^(look|scene)/.test(path)) return;
   const [o, k] = targetFor(path);
   let v = el.type === 'checkbox' ? el.checked : el.type === 'range' ? parseFloat(el.value) : el.value;
@@ -1104,10 +1355,30 @@ $('insp').addEventListener('input', e => {
   const out = document.querySelector(`[data-out="${path}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
   if (path.startsWith('look') && !path.startsWith('look.trail')) { LC.clear(); MC.clear(); }
   rebuild();
-  if (el.tagName === 'SELECT' && path === 'clip.mode' || path === 'clip.enabled') renderInspector();
+  if (el.tagName === 'SELECT' && (path === 'clip.mode' || path === 'trans.fo.type') || path === 'clip.enabled') renderInspector();
 });
 $('insp').addEventListener('click', e => {
+  const kb = e.target.closest('[data-key]'), rb = e.target.closest('[data-ramp]');
+  if ((kb || rb) && sel && sel.kind === 'trans') {
+    const i = clipIndex(sel.id), fo = S.clips[i].trans.fo, tau = curTau(i);
+    if (rb) { fo.ramp = JSON.parse(JSON.stringify(RAMP_PRESETS[rb.dataset.ramp])); drawRamp(); scheduleSave(); return; }
+    const p = kb.dataset.key, K = fo.k[p];
+    if (e.altKey) { if (K) { fo[p] = foValue(fo, p, tau); delete fo.k[p]; } }
+    else if (K && K.some(k => Math.abs(k[0] - tau) < 0.006)) {
+      fo[p] = foValue(fo, p, tau);
+      K.splice(K.findIndex(k => Math.abs(k[0] - tau) < 0.006), 1);
+      if (!K.length) delete fo.k[p];
+    } else setKey(fo, p, tau, foValue(fo, p, tau));
+    syncFoUI(true); renderTimeline(); scheduleSave(); return;
+  }
   const b = e.target.closest('[data-act]'); if (!b) return;
+  if ((b.dataset.act === 'kprev' || b.dataset.act === 'knext') && sel && sel.kind === 'trans') {
+    const i = clipIndex(sel.id), s = segs.find(s => s.kind === 'trans' && s.i === i); if (!s) return;
+    const ks = foKeyTimes(S.clips[i].trans.fo), tau = curTau(i);
+    const k = b.dataset.act === 'knext' ? ks.find(k => k > tau + 0.004) : [...ks].reverse().find(k => k < tau - 0.004);
+    if (k === undefined) return;
+    playing = false; syncPlay(); tl = Math.min(s.t1 - 1e-4, s.t0 + k * (s.t1 - s.t0) + (k === 0 ? 1e-4 : 0)); updatePlayhead(); syncFoUI(true); return;
+  }
   const act = b.dataset.act, i = sel ? clipIndex(sel.id) : -1, c = S.clips[i];
   if (act === 'del' && c) { S.clips.splice(i, 1); if (!S.clips.length) S.clips.push(makeClip('text')); sel = null; rebuild(); renderInspector(); }
   else if (act === 'dup' && c) { const d = JSON.parse(JSON.stringify(c)); d.id = newId(); S.clips.splice(i + 1, 0, d); sel = { kind: 'clip', id: d.id }; rebuild(); renderInspector(); }
@@ -1243,6 +1514,7 @@ function frame(now) {
   const delta = playing ? dt * dir : Math.max(-0.1, Math.min(0.1, tl - drawnT));
   drawnT = tl;
   draw(Math.min(tl, Math.max(0, total - 1e-6)), delta);
+  syncFoUI(false);
   requestAnimationFrame(frame);
 }
 
