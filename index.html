@@ -207,7 +207,7 @@ function cleanFo(o) {
   f.ramp = r;
   return f;
 }
-const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o); t.fo = cleanFo(o.fo); return t; };
+const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, overshoot: 0, ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o); t.overshoot = num(t.overshoot, 0, 0, 1); t.fo = cleanFo(o.fo); return t; };
 // Type settings for text/cipher blocks. size = glyph height in grid pixels (Unifont: multiples of 16).
 const defType = (o = {}) => Object.assign({ font: 'Unifont', size: 16, track: 0, lead: 1, align: 'center', mono: true, cellW: 0, cellH: 0, weight: '400' }, o);
 function cleanType(o) {
@@ -248,12 +248,20 @@ function makeClip(type, o = {}) {
   Object.assign(c, o);
   c.trans = defTrans(o.trans || {});
   if (type === 'image') c.image = defImage(o.image || {});
+  if (type === 'squares' || type === 'bigsquare') c.sq = cleanSq(o.sq);
   if (c.ty) c.ty = cleanType(c.ty);
   return c;
 }
 const defTrail = () => ({ v: 3, on: true, palette: 'iridescent', length: 0.955, intensity: 0.85, width: 1, sharp: 0.35, haze: 0.9, disp: 0.6, sheen: 0.7, drift: 0.3, turb: 0.15, spread: 1, cycle: 0.4, start: 0, end: 9999 });
 function migrateTrail(tr) { if (!tr || (tr.v !== 2 && tr.v !== 3)) return {}; const o = Object.assign({}, tr); if (o.v === 2) { o.width = 1; o.v = 3; } return o; }
-const defLook = () => ({ snap: false, seams: false, uniform: true, align: 'bottom', roundUp: true, assign: 'center', gap: 0, bg: '#000000', fg: '#ffffff', pxMode: 'fit', scale: 1, px: 6, res: { mode: 'fit', w: 1920, h: 1080 }, trail: defTrail() });
+// Square / big-square layout options live on those blocks (older scenes kept them under look).
+const defSq = () => ({ uniform: true, align: 'bottom', roundUp: true, assign: 'center', gap: 0 });
+function cleanSq(o) {
+  const d = defSq(); o = o && typeof o === 'object' ? o : {};
+  return { uniform: o.uniform !== undefined ? !!o.uniform : d.uniform, align: ['bottom', 'center', 'top'].includes(o.align) ? o.align : d.align,
+    roundUp: o.roundUp !== undefined ? !!o.roundUp : d.roundUp, assign: o.assign === 'grid' ? 'grid' : 'center', gap: Math.round(num(o.gap, 0, 0, 8)) };
+}
+const defLook = () => ({ snap: false, seams: false, bg: '#000000', fg: '#ffffff', pxMode: 'fit', scale: 1, px: 6, res: { mode: 'fit', w: 1920, h: 1080 }, trail: defTrail() });
 const hexOk = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d;
 function cleanLook(o) {
   const L = Object.assign(defLook(), o || {}, { trail: Object.assign(defTrail(), migrateTrail(o && o.trail)) });
@@ -289,6 +297,7 @@ function normalizeScene(o) {
     out.trans = defTrans(c.trans || {});
     out.trans.dur = num(out.trans.dur, 1.6, 0.05, 120);
     if (c.type === 'image') out.image = defImage(c.image || {});
+    if (c.type === 'squares' || c.type === 'bigsquare') out.sq = cleanSq(Object.assign({}, o.look || {}, c.sq || {}));
     if (c.type === 'text' || c.type === 'cipher') { out.text = String(out.text ?? ''); out.ty = cleanType(c.ty); }
     if (c.type === 'cipher') out.ownType = !!c.ownType;
     return out;
@@ -322,6 +331,13 @@ function nearestText(i, types) {
   return -1;
 }
 function cipherBase(i) { const c = S.clips[i]; if (c.text) return c.text; const k = nearestText(i, ['text']); return k >= 0 ? S.clips[k].text : 'TEXT'; }
+// Big square: square size/alignment follow the nearest Squares block so the squares → big square move stays rigid.
+function sqOpts(i) {
+  const c = S.clips[i];
+  if (c.type !== 'bigsquare') return c.sq;
+  const k = nearestText(i, ['squares']), base = k >= 0 ? S.clips[k].sq : c.sq;
+  return Object.assign({}, c.sq, { uniform: base.uniform, align: base.align });
+}
 function clipType(i) {
   const c = S.clips[i];
   if (c.type === 'text' || (c.type === 'cipher' && c.ownType)) return c.ty;
@@ -365,7 +381,7 @@ function fillEmpty(items, s, makeClone) {
 // ================= layouts (point sets) =================
 const LC = new Map();
 function memo(key, fn) { if (LC.has(key)) return LC.get(key); const v = fn(); v.key = key; LC.set(key, v); if (LC.size > 400) LC.delete(LC.keys().next().value); return v; }
-const lookKey = () => { const L = S.look; return [L.uniform, L.align, L.roundUp, L.assign, L.gap].join('|'); };
+
 
 // ---- fonts ----
 // Unifont is built in (8x16 bitmaps). Any other name is loaded from Google Fonts if it exists there,
@@ -464,10 +480,11 @@ function layoutText(str, ty) {
   });
 }
 
-function layoutSquares(str, ty) {
+function layoutSquares(str, ty, so) {
+  so = so || defSq();
   const T = layoutText(str, ty);
-  return memo('Q' + lookKey() + T.key, () => {
-    const L = S.look;
+  return memo('Q' + so.uniform + so.align + T.key, () => {
+    const L = so;
     const gs = T.groups.map(g => {
       const px = [];
       for (let k = g.i0; k < g.i1; k++) px.push({ x: T.pts[k].x, y: T.pts[k].y, src: k });
@@ -489,15 +506,16 @@ function layoutSquares(str, ty) {
       all.forEach(p => pts.push({ x: g.sx + p.col, y: g.sy + p.row, g: gi, src: p.src }));
       groups.push({ sx: g.sx, sy: g.sy, s: g.s, cx: g.sx + g.s / 2, cy: g.sy + g.s / 2, i0, i1: pts.length });
     });
-    return { kind: 'squares', str, ty, tkey: T.key, pts, groups, maxS, w: T.w, h: T.h };
+    return { kind: 'squares', str, ty, so, tkey: T.key, pts, groups, maxS, w: T.w, h: T.h };
   });
 }
 
-function layoutBig(str, ty) {
-  const Q0 = layoutSquares(str, ty);
-  return memo('B' + Q0.key, () => {
-    const Q = Q0, L = S.look, M = Q.groups.length;
-    if (!M) return { kind: 'big', str, ty, qkey: Q.key, tkey: Q.tkey, pts: [], groups: [], w: 0, h: 0 };
+function layoutBig(str, ty, so) {
+  so = so || defSq();
+  const Q0 = layoutSquares(str, ty, so);
+  return memo('B' + so.roundUp + so.assign + so.gap + Q0.key, () => {
+    const Q = Q0, L = so, M = Q.groups.length;
+    if (!M) return { kind: 'big', str, ty, so, qkey: Q.key, tkey: Q.tkey, pts: [], groups: [], w: 0, h: 0 };
     const Sz = Math.max(1, L.roundUp ? Math.ceil(Math.sqrt(M)) : Math.floor(Math.sqrt(M)));
     const cell = Q.maxS, gap = L.gap, side = Sz * cell + (Sz - 1) * gap, b0 = -Math.round(side / 2);
     const cellXY = k => [b0 + (k % Sz) * (cell + gap) + cell / 2, b0 + Math.floor(k / Sz) * (cell + gap) + cell / 2];
@@ -535,7 +553,7 @@ function layoutBig(str, ty) {
       for (let i = g.i0; i < g.i1; i++) pts.push({ x: Q.pts[i].x + dx, y: Q.pts[i].y + dy, g: pi, src: i });
       groups.push({ gi: pl.gi, order: ordered && placed.length > 1 ? pi / (placed.length - 1) : null });
     });
-    return { kind: 'big', str, ty, qkey: Q.key, tkey: Q.tkey, pts, groups, w: side, h: side, grid: Sz };
+    return { kind: 'big', str, ty, so, qkey: Q.key, tkey: Q.tkey, pts, groups, w: side, h: side, grid: Sz };
   });
 }
 
@@ -582,7 +600,7 @@ function clipLayout(i, tick = 0) {
   if (c.type === 'image') return layoutImage(c.image);
   if (c.type === 'text' || c.type === 'cipher') return layoutText(clipString(i, tick), clipType(i));
   const str = clipString(i), ty = clipType(i);
-  return c.type === 'squares' ? layoutSquares(str, ty) : layoutBig(str, ty);
+  return c.type === 'squares' ? layoutSquares(str, ty, sqOpts(i)) : layoutBig(str, ty, sqOpts(i));
 }
 
 // ================= matching A → B =================
@@ -646,7 +664,7 @@ function matchFor(A, B, tr, rand) {
       return { pairs: B.pts.map(p => ({ a: A.pts[p.src], b: p, g: p.g })), gPos: B.groups.map(g => [A.groups[g.gi].cx, A.groups[g.gi].cy]), gOrder: B.groups.map(g => g.order), rigid: true };
     // text → big square directly
     if (A.kind === 'text' && B.kind === 'big' && A.key === B.tkey) {
-      const Q = layoutSquares(B.str, B.ty);
+      const Q = layoutSquares(B.str, B.ty, B.so);
       return { pairs: B.pts.map(p => ({ a: A.pts[Q.pts[p.src].src], b: p, g: p.g })), gPos: B.groups.map(g => [Q.groups[g.gi].cx, Q.groups[g.gi].cy]), gOrder: B.groups.map(g => g.order) };
     }
     // reverse directions: run the forward match and swap ends
@@ -1074,6 +1092,8 @@ function draw(t, delta = 0) {
     if (!m.n) pts = (lt < D / 2 ? seg.A : seg.B).pts;
     else {
       const sp = tr.stagger * D, md = Math.max(0.03, D - sp), a = 0.5 + 0.5 * tr.overlap, e = EASE[tr.ease] || EASE.cubic;
+      const os = tr.overshoot || 0, OP = 0.7; // overshoot: travel past the target by os × distance, then settle back
+      const ov = os > 0 ? (x => x < OP ? (1 + os) * e(x / OP) : 1 + os - os * e((x - OP) / (1 - OP))) : e;
       const fo = tr.fo, ramp = rampLUT(fo.ramp), plain = fo.type === 'plain', FC = new Map();
       const fieldAt = ltx => { let F = FC.get(ltx); if (!F) { F = foField(fo, m, clamp01(ltx / D)); FC.set(ltx, F); } return F; };
       const pos = (i, ltx, out) => {
@@ -1087,7 +1107,7 @@ function draw(t, delta = 0) {
         if (u <= 0) { out[0] = m.fx[i]; out[1] = m.fy[i]; }
         else if (u >= 1) { out[0] = m.tx[i]; out[1] = m.ty[i]; }
         else {
-          const f = e(clamp01(u / a)), g = e(clamp01((u - (1 - a)) / a));
+          const f = ov(clamp01(u / a)), g = ov(clamp01((u - (1 - a)) / a));
           const ux = m.axis[i] ? g : f, uy = m.axis[i] ? f : g;
           out[0] = m.fx[i] + (m.tx[i] - m.fx[i]) * ux; out[1] = m.fy[i] + (m.ty[i] - m.fy[i]) * uy;
         }
@@ -1301,7 +1321,7 @@ track.addEventListener('pointerdown', e => {
     return;
   }
   if (blk && (blk.dataset.k === 'clip' || blk.dataset.k === 'off')) { drag = { mode: 'press', i: +blk.dataset.i, x0: e.clientX, el: blk }; return; }
-  if (blk && blk.dataset.k === 'trans') { const c = S.clips[+blk.dataset.i]; select('trans', c.id, true); drag = null; return; }
+  if (blk && blk.dataset.k === 'trans') { const c = S.clips[+blk.dataset.i]; select('trans', c.id, false); drag = null; return; }
   drag = { mode: 'scrub' }; scrubTo(x);
 });
 track.addEventListener('pointermove', e => {
@@ -1341,7 +1361,7 @@ track.addEventListener('pointermove', e => {
 });
 const endDrag = () => {
   if (!drag) return;
-  if (drag.mode === 'press') { const c = S.clips[drag.i]; select('clip', c.id, true); }
+  if (drag.mode === 'press') { const c = S.clips[drag.i]; select('clip', c.id, false); }
   else if (drag.mode === 'move' && drag.target !== undefined) {
     const c = S.clips.splice(drag.i, 1)[0];
     S.clips.splice(drag.target, 0, c);
@@ -1355,7 +1375,7 @@ track.addEventListener('pointercancel', endDrag);
 function scrubTo(x) { playing = false; tl = Math.max(0, Math.min(total, xToT(x))); syncPlay(); updatePlayhead(); }
 
 function select(kind, id, seek) {
-  sel = { kind, id };
+  sel = { kind, id }; fontCustom = false;
   if (seek) {
     const i = clipIndex(id), it = items.find(it => it.i === i && (kind === 'trans' ? it.kind === 'trans' : it.kind !== 'trans'));
     if (it && it.t1 > it.t0) { tl = it.t0 + 1e-4; updatePlayhead(); }
@@ -1399,7 +1419,19 @@ function renderInspector() {
       h += chk('clip.image.invert', 'Invert (black shapes on white)', c.image.invert);
     }
     if (c.type === 'text' || c.type === 'cipher') h += `</div>` + typeGroup(c, i) + `<div class="group">`;
-    if (c.type === 'squares' || c.type === 'bigsquare') h += `<div class="hint">Built from the nearest text or cipher block: “${esc(clipString(i).replace(/\n/g, ' / ') || 'none')}”. Square settings are under Look.</div>`;
+    if (c.type === 'squares' || c.type === 'bigsquare') {
+      h += `<div class="hint">Built from the nearest text or cipher block: “${esc(clipString(i).replace(/\n/g, ' / ') || 'none')}”.</div>`;
+      const q = c.sq, sqK = c.type === 'bigsquare' ? nearestText(i, ['squares']) : -1;
+      if (sqK < 0) {
+        h += sel_('clip.sq.uniform', 'Square size', q.uniform ? '1' : '0', [['1', 'Uniform (duplicate to fill)'], ['0', 'Natural ⌊√N⌋']]);
+        h += sel_('clip.sq.align', 'Square alignment', q.align, [['bottom', 'Baseline'], ['center', 'Center'], ['top', 'Top']]);
+      } else h += `<div class="hint">Square size and alignment come from the Squares block ${sqK + 1}, so the squares move into place as whole units.</div>`;
+      if (c.type === 'bigsquare') {
+        h += sel_('clip.sq.roundUp', 'Grid', q.roundUp ? '1' : '0', [['1', 'Round up (duplicate to fill)'], ['0', 'Round down (overlap)']]);
+        h += sel_('clip.sq.assign', 'Build order', q.assign, [['center', 'Center out'], ['grid', 'Grid packing']]);
+        h += rng('clip.sq.gap', 'Gap between squares', q.gap, 0, 4, 1, 'px');
+      }
+    }
     h += `<div class="btns"><button data-act="left" aria-label="Move earlier">◀ Move</button><button data-act="right" aria-label="Move later">Move ▶</button><button data-act="dup">Duplicate</button><button data-act="del">Delete</button></div></div>`;
   } else if (sel && sel.kind === 'trail') {
     const Tr = S.look.trail;
@@ -1442,6 +1474,7 @@ function renderInspector() {
     h += `<div class="hint">Maps falloff → progress per pixel. Click to add a point, drag to move, double-click to remove.</div>`;
     h += sel_('trans.axis', 'Axis order', c.trans.axis, [['x', 'X then Y'], ['y', 'Y then X'], ['alt', 'Alternate'], ['rnd', 'Random']]);
     h += rng('trans.overlap', 'Axis overlap', c.trans.overlap, 0, 1, 0.05, '%');
+    h += rng('trans.overshoot', 'Overshoot', c.trans.overshoot || 0, 0, 0.5, 0.01, '%');
     h += sel_('trans.ease', 'Easing', c.trans.ease, [['cubic', 'Cubic in-out'], ['quad', 'Quad in-out'], ['expo', 'Expo in-out'], ['linear', 'Linear']]);
     h += rng('trans.trail', 'Trail amount', c.trans.trail ?? 1, 0, 2, 0.05, '%');
     h += sel_('trans.match', 'Pixel matching', c.trans.match, [['auto', 'Auto'], ['letters', 'Letter by letter'], ['rows', 'By rows'], ['random', 'Random']]);
@@ -1463,6 +1496,8 @@ function renderInspector() {
   ins.innerHTML = h;
   drawRamp();
 }
+const FONT_PICKS = [['Unifont', 'pixel, built in'], ['Press Start 2P', 'pixel'], ['VT323', 'terminal'], ['Silkscreen', 'pixel'], ['Pixelify Sans', 'pixel'], ['Tiny5', 'tiny pixel'], ['Jersey 10', 'pixel'], ['Micro 5', 'micro pixel'], ['DotGothic16', 'dot matrix'], ['Workbench', 'scanline'], ['Space Mono', 'mono'], ['JetBrains Mono', 'mono'], ['IBM Plex Mono', 'mono'], ['Space Grotesk', 'grotesk'], ['Inter', 'sans']];
+let fontCustom = false;
 function typeGroup(c, i) {
   const y = c.ty; let h = `<div class="group"><div class="label"><span>Type</span></div>`;
   if (c.type === 'cipher') {
@@ -1470,8 +1505,10 @@ function typeGroup(c, i) {
     if (!c.ownType) { const u = clipType(i); return h + `<div class="hint">Uses the nearest text block's type: ${esc(u.font)}, ${u.size}px.</div></div>`; }
   }
   const uni = isUni(y.font);
-  h += `<div class="row"><label for="f-clip.ty.font">Font</label></div><input type="text" list="fontList" id="f-clip.ty.font" data-path="clip.ty.font" data-commit="1" value="${esc(y.font)}" spellcheck="false" autocomplete="off">`;
-  h += `<div class="hint" id="fontState">${esc(fontStateText(y.font))} Type any Google Fonts or installed font name, then press Enter.</div>`;
+  const inList = FONT_PICKS.some(p => p[0] === y.font), custom = fontCustom || !inList;
+  h += sel_('clip.ty.fontPick', 'Font', custom ? '__custom' : y.font, FONT_PICKS.map(p => [p[0], p[0] + ' · ' + p[1]]).concat([['__custom', 'Custom font…']]));
+  if (custom) h += `<input type="text" list="fontList" id="f-clip.ty.font" data-path="clip.ty.font" data-commit="1" value="${esc(y.font)}" spellcheck="false" autocomplete="off" aria-label="Custom font name" placeholder="Any Google Fonts or installed font">`;
+  h += `<div class="hint" id="fontState">${esc(fontStateText(y.font))} ${custom ? 'Type any Google Fonts or installed font name, then press Enter.' : ''}</div>`;
   h += rng('clip.ty.size', 'Size', y.size, uni ? 16 : 6, uni ? 96 : 120, uni ? 16 : 1, 'px');
   if (!uni) h += sel_('clip.ty.weight', 'Weight', y.weight, [['300', 'Light'], ['400', 'Regular'], ['500', 'Medium'], ['700', 'Bold'], ['900', 'Black']]);
   h += rng('clip.ty.track', 'Letter spacing', y.track, -8, 32, 1, 'px') + rng('clip.ty.lead', 'Line spacing', y.lead, 0.5, 3, 0.05, 'x');
@@ -1519,11 +1556,7 @@ function renderSide() {
   h += sel_('look.pxMode', 'Framing', L.pxMode, [['fit', 'Auto-fit'], ['fixed', 'Fixed pixel size']]);
   h += L.pxMode === 'fit' ? rng('look.scale', 'Overall size', L.scale, 0.1, 1.5, 0.01, '%') : rng('look.px', 'Pixel size (at 1080p)', L.px, 1, 40, 0.5, 'px');
   h += chk('look.snap', 'Snap to pixel grid', L.snap) + chk('look.seams', 'Show pixel seams', L.seams);
-  h += sel_('look.uniform', 'Square size', L.uniform ? '1' : '0', [['1', 'Uniform (duplicate to fill)'], ['0', 'Natural ⌊√N⌋']]);
-  h += sel_('look.align', 'Square alignment', L.align, [['bottom', 'Baseline'], ['center', 'Center'], ['top', 'Top']]);
-  h += sel_('look.roundUp', 'Big square grid', L.roundUp ? '1' : '0', [['1', 'Round up (duplicate to fill)'], ['0', 'Round down (overlap)']]);
-  h += sel_('look.assign', 'Big square build', L.assign, [['center', 'Center out'], ['grid', 'Grid packing']]);
-  h += rng('look.gap', 'Gap between squares', L.gap, 0, 4, 1, 'px') + `</div>`;
+  h += `</div>`;
   h += `<div class="group"><div class="label"><span>Work area</span></div>`;
   h += sel_('look.res.mode', 'Resolution', R.mode, [['fit', 'Fill window'], ['fixed', 'Fixed resolution']]);
   if (R.mode === 'fixed') {
@@ -1665,13 +1698,18 @@ onPanels('input', e => {
 onPanels('change', e => { if (e.target.dataset.commit) applyPath(e.target); });
 function applyPath(el) {
   const path = el.dataset.path; if (!path || !sel && !/^(look|scene|export|cam)/.test(path)) return;
+  if (path === 'clip.ty.fontPick') {
+    if (el.value === '__custom') { fontCustom = true; renderInspector(); const inp = document.getElementById('f-clip.ty.font'); if (inp) { inp.focus(); inp.select(); } return; }
+    fontCustom = false; const c = S.clips[clipIndex(sel.id)]; c.ty.font = el.value; c.ty = cleanType(c.ty);
+    if (isUni(c.ty.font)) c.ty.size = Math.max(16, Math.round(c.ty.size / 16) * 16);
+    rebuild(); renderInspector(); return;
+  }
   const [o, k] = targetFor(path);
   let v = el.type === 'checkbox' ? el.checked : (el.type === 'range' || el.type === 'number') ? parseFloat(el.value) : el.value;
   if (el.type === 'number' && !isFinite(v)) return;
-  if (path === 'look.uniform' || path === 'look.roundUp') v = v === '1';
+  if (path === 'clip.sq.uniform' || path === 'clip.sq.roundUp') v = v === '1';
   o[k] = v;
   const out = document.querySelector(`[data-out="${path}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
-  if (/^look\.(uniform|align|roundUp|assign|gap)$/.test(path)) { LC.clear(); MC.clear(); }
   if (path.startsWith('clip.ty.')) { const c = S.clips[clipIndex(sel.id)]; c.ty = cleanType(c.ty); }
   if (path.startsWith('look.res') || path.startsWith('look.bg')) { S.look = cleanLook(S.look); resize(); }
   if (path.startsWith('export.')) { S.export = cleanExport(S.export); if (path === 'export.preset' && EXP_PRESETS[v] && EXP_PRESETS[v][0]) { S.export.w = EXP_PRESETS[v][0]; S.export.h = EXP_PRESETS[v][1]; } }
