@@ -31,9 +31,26 @@
 }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 12px; }
-.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr) auto; }
+.app { height: 100%; display: grid; grid-template-columns: 264px minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr) auto; }
+.app.sidecol { grid-template-columns: 34px minmax(0, 1fr) 300px; }
+.side { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; min-width: 0; display: flex; flex-direction: column; }
+.side .shead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 1; }
+.side .sbody { padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 18px; }
+.app.sidecol .side .sbody, .app.sidecol .side h1 { display: none; }
+.app.sidecol .side .shead { padding: 8px 4px; justify-content: center; border-bottom: 0; }
+#sideToggle { padding: 3px 7px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pair label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 10px; }
+input[type=color] { width: 100%; height: 26px; padding: 0 2px; background: var(--bg); border: 1px solid var(--line); }
+.prog { height: 6px; background: var(--raise); border: 1px solid var(--line); }
+.prog > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--oil1), var(--oil2), var(--oil3), var(--oil4)); }
+.cambar { position: absolute; top: 24px; height: 20px; box-sizing: border-box; border: 1px solid var(--line); background: var(--raise); color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; display: flex; align-items: center; padding: 0 8px; cursor: pointer; overflow: hidden; white-space: nowrap; }
+.cambar.sel { border-color: var(--accent); color: var(--fg); }
+.cambar .kd { bottom: 6px; }
+.stage.fixed { background: #050506; }
+.stage.fixed canvas { box-shadow: 0 0 0 1px var(--line); }
 .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); }
-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 .hud { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); top: 12px; color: var(--muted); font-size: 11px; letter-spacing: .04em; pointer-events: none; }
 .insp { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding-block: 14px 24px; padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .tlwrap { grid-column: 1 / -1; background: var(--panel); border-top: 1px solid var(--line); padding-block: 8px 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -42,11 +59,11 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .tlbar .lbl { color: var(--muted); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
 .time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 13ch; }
 .tlscroll { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line); background: var(--bg); }
-#track { position: relative; height: 124px; touch-action: none; user-select: none; -webkit-user-select: none; min-width: 100%; }
+#track { position: relative; height: 148px; touch-action: none; user-select: none; -webkit-user-select: none; min-width: 100%; }
 .ruler { position: absolute; left: 0; right: 0; top: 0; height: 20px; border-bottom: 1px solid var(--line); cursor: text; }
 .tick { position: absolute; top: 0; height: 20px; border-left: 1px solid var(--line); font-size: 10px; color: var(--muted); padding-left: 3px; line-height: 20px; pointer-events: none; }
 .tick.minor { height: 5px; top: 15px; }
-.blk { position: absolute; top: 54px; height: 62px; box-sizing: border-box; border: 1px solid var(--line); overflow: hidden; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; }
+.blk { position: absolute; top: 78px; height: 62px; box-sizing: border-box; border: 1px solid var(--line); overflow: hidden; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; }
 .blk .bt { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
 .blk .bs { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .blk .bd { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; margin-top: auto; }
@@ -59,13 +76,13 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .blk.dragging { opacity: .4; }
 .grip { position: absolute; top: 0; right: 0; width: 9px; height: 100%; cursor: ew-resize; }
 .grip:hover, .grip.on { background: var(--hover); }
-.adj { position: absolute; top: 25px; height: 24px; box-sizing: border-box; border: 1px solid var(--line); cursor: grab; display: flex; align-items: center; padding: 0 10px; overflow: hidden;
+.adj { position: absolute; top: 48px; height: 24px; box-sizing: border-box; border: 1px solid var(--line); cursor: grab; display: flex; align-items: center; padding: 0 10px; overflow: hidden;
   background: linear-gradient(100deg, var(--oil1), var(--oil2) 28%, var(--oil3) 52%, var(--oil4) 76%, var(--oil1)); color: var(--bg); font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
 .adj.off { background: repeating-linear-gradient(45deg, var(--bg) 0 4px, var(--raise) 4px 8px); color: var(--muted); }
 .adj.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .adj .grip.l { left: 0; right: auto; }
 .phead { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); pointer-events: none; }
-.drop { position: absolute; top: 50px; bottom: 4px; width: 2px; background: var(--accent); pointer-events: none; }
+.drop { position: absolute; top: 74px; bottom: 4px; width: 2px; background: var(--accent); pointer-events: none; }
 h1 { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; margin: 0; }
 .group { display: flex; flex-direction: column; gap: 10px; }
 .group > .label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
@@ -96,11 +113,14 @@ button.key.on { background: var(--oil4); color: var(--bg); border-color: var(--o
 @media (max-width: 760px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 46vh auto auto; height: auto; min-height: 100%; }
   .tlwrap { grid-row: 2; }
+  .app, .app.sidecol { grid-template-columns: 1fr; grid-template-rows: 46vh auto auto auto; }
+  .side { grid-row: 4; border-right: 0; border-top: 1px solid var(--line); overflow: visible; }
   .insp { grid-row: 3; border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
 }
 </style>
 
-<div class="app">
+<div class="app" id="app">
+  <aside class="side" id="side"><div class="shead"><h1>Look · Render</h1><button id="sideToggle" aria-label="Collapse side panel" title="Collapse / expand">◂</button></div><div class="sbody" id="sideBody"></div></aside>
   <div class="stage" id="stage">
     <canvas id="fx" hidden></canvas>
     <canvas id="cv"></canvas>
@@ -126,9 +146,10 @@ button.key.on { background: var(--oil4); color: var(--bg); border-color: var(--o
       <button id="fit">Fit</button>
     </div>
     <div class="tlscroll" id="tlscroll"><div id="track"></div></div>
-    <div class="hint">Click a block to edit it · drag a block to reorder · drag its right edge to change duration · click the ruler to scrub · Space play/pause · Delete removes the selected block</div>
+    <div class="hint">Click a block to edit it · drag a block to reorder · drag its right edge to change duration · click the ruler or Camera bar to scrub · Space play/pause · Delete removes the selected block</div>
   </section>
 </div>
+<datalist id="fontList"><option value="Unifont"><option value="Press Start 2P"><option value="VT323"><option value="Silkscreen"><option value="Pixelify Sans"><option value="Tiny5"><option value="Jersey 10"><option value="Micro 5"><option value="Space Mono"><option value="IBM Plex Mono"><option value="JetBrains Mono"><option value="Inter"><option value="Courier New"><option value="Georgia"></datalist>
 <input type="file" id="imgFile" accept="image/*" hidden>
 <input type="file" id="sceneFile" accept=".json,application/json" hidden>
 
@@ -187,22 +208,64 @@ function cleanFo(o) {
   return f;
 }
 const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o); t.fo = cleanFo(o.fo); return t; };
+// Type settings for text/cipher blocks. size = glyph height in grid pixels (Unifont: multiples of 16).
+const defType = (o = {}) => Object.assign({ font: 'Unifont', size: 16, track: 0, lead: 1, align: 'center', mono: true, cellW: 0, cellH: 0, weight: '400' }, o);
+function cleanType(o) {
+  const y = defType(o && typeof o === 'object' ? o : {});
+  y.font = String(y.font || 'Unifont').slice(0, 60).replace(/["\\;{}<>]/g, '').trim() || 'Unifont';
+  y.size = num(y.size, 16, 4, 160); y.track = num(y.track, 0, -32, 64); y.lead = num(y.lead, 1, 0.3, 4);
+  y.cellW = num(y.cellW, 0, 0, 32); y.cellH = num(y.cellH, 0, 0, 48);
+  y.align = ['left', 'center', 'right'].includes(y.align) ? y.align : 'center'; y.mono = !!y.mono;
+  y.weight = ['300', '400', '500', '700', '900'].includes(String(y.weight)) ? String(y.weight) : '400';
+  return y;
+}
+// Camera: keys live on absolute scene time (seconds).
+const CAM_PARAMS = { zoom: 1, x: 0, y: 0, roll: 0, tiltX: 0, tiltY: 0, fov: 40 };
+const defCam = () => Object.assign({ interp: 'ease', k: {} }, CAM_PARAMS);
+function cleanCam(o) {
+  const c = defCam(); if (!o || typeof o !== 'object') return c;
+  for (const p in CAM_PARAMS) c[p] = num(o[p], CAM_PARAMS[p], -1e4, 1e4);
+  c.interp = o.interp === 'linear' ? 'linear' : 'ease';
+  if (o.k && typeof o.k === 'object') for (const p in CAM_PARAMS) if (Array.isArray(o.k[p])) {
+    const a = o.k[p].filter(e => Array.isArray(e) && isFinite(e[0]) && isFinite(e[1])).map(e => [Math.max(0, +e[0]), +e[1]]).sort((x, y) => x[0] - y[0]);
+    if (a.length) c.k[p] = a;
+  }
+  return c;
+}
+const defExport = () => ({ fmt: 'mp4', fps: 30, preset: 'fhd', w: 1920, h: 1080 });
+function cleanExport(o) {
+  const e = Object.assign(defExport(), o && typeof o === 'object' ? o : {});
+  e.fmt = e.fmt === 'png' ? 'png' : 'mp4'; e.fps = num(e.fps, 30, 1, 120);
+  e.w = Math.round(num(e.w, 1920, 16, 7680)); e.h = Math.round(num(e.h, 1080, 16, 4320));
+  return e;
+}
 const defImage = (o = {}) => Object.assign({ src: 'sample', width: 32, threshold: 128, invert: false }, o);
 function makeClip(type, o = {}) {
   const c = { id: newId(), type, enabled: true, hold: 1.5 };
   if (type === 'text') c.text = 'NEW TEXT';
-  if (type === 'cipher') Object.assign(c, { text: '', mode: 'scramble', shift: 3, seed: 7, flicker: 8 });
+  if (type === 'cipher') Object.assign(c, { text: '', mode: 'scramble', shift: 3, seed: 7, flicker: 8, ownType: false });
+  if (type === 'text' || type === 'cipher') c.ty = defType();
   Object.assign(c, o);
   c.trans = defTrans(o.trans || {});
   if (type === 'image') c.image = defImage(o.image || {});
+  if (c.ty) c.ty = cleanType(c.ty);
   return c;
 }
 const defTrail = () => ({ v: 3, on: true, palette: 'iridescent', length: 0.955, intensity: 0.85, width: 1, sharp: 0.35, haze: 0.9, disp: 0.6, sheen: 0.7, drift: 0.3, turb: 0.15, spread: 1, cycle: 0.4, start: 0, end: 9999 });
 function migrateTrail(tr) { if (!tr || (tr.v !== 2 && tr.v !== 3)) return {}; const o = Object.assign({}, tr); if (o.v === 2) { o.width = 1; o.v = 3; } return o; }
-const defLook = () => ({ snap: false, seams: false, uniform: true, align: 'bottom', roundUp: true, assign: 'center', gap: 0, trail: defTrail() });
+const defLook = () => ({ snap: false, seams: false, uniform: true, align: 'bottom', roundUp: true, assign: 'center', gap: 0, bg: '#000000', fg: '#ffffff', pxMode: 'fit', scale: 1, px: 6, res: { mode: 'fit', w: 1920, h: 1080 }, trail: defTrail() });
+const hexOk = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d;
+function cleanLook(o) {
+  const L = Object.assign(defLook(), o || {}, { trail: Object.assign(defTrail(), migrateTrail(o && o.trail)) });
+  L.bg = hexOk(L.bg, '#000000'); L.fg = hexOk(L.fg, '#ffffff');
+  L.pxMode = L.pxMode === 'fixed' ? 'fixed' : 'fit'; L.scale = num(L.scale, 1, 0.05, 3); L.px = num(L.px, 6, 0.5, 64);
+  const r = Object.assign({ mode: 'fit', w: 1920, h: 1080 }, o && o.res || {});
+  L.res = { mode: r.mode === 'fixed' ? 'fixed' : 'fit', w: Math.round(num(r.w, 1920, 16, 7680)), h: Math.round(num(r.h, 1080, 16, 4320)) };
+  return L;
+}
 function defaultScene() {
   return {
-    version: 1, playback: 'loop', name: 'Example scene', look: defLook(),
+    version: 1, playback: 'loop', name: 'Example scene', look: defLook(), cam: defCam(), export: defExport(),
     clips: [
       makeClip('image', { hold: 1.2, trans: { dur: 2.2 } }),
       makeClip('text', { text: 'HELLO WORLD', hold: 1.8, trans: { dur: 1.2, order: 'sweep', stagger: 0.6 } }),
@@ -226,11 +289,12 @@ function normalizeScene(o) {
     out.trans = defTrans(c.trans || {});
     out.trans.dur = num(out.trans.dur, 1.6, 0.05, 120);
     if (c.type === 'image') out.image = defImage(c.image || {});
-    if (c.type === 'text' || c.type === 'cipher') out.text = String(out.text ?? '');
+    if (c.type === 'text' || c.type === 'cipher') { out.text = String(out.text ?? ''); out.ty = cleanType(c.ty); }
+    if (c.type === 'cipher') out.ownType = !!c.ownType;
     return out;
   });
   if (!clips.length) throw new Error('The scene has no usable blocks.');
-  return { version: 1, playback: ['loop', 'pingpong', 'once'].includes(o.playback) ? o.playback : 'loop', name: String(o.name || 'Untitled scene').slice(0, 80), look: Object.assign(defLook(), o.look || {}, { trail: Object.assign(defTrail(), migrateTrail(o.look && o.look.trail)) }), clips };
+  return { version: 1, playback: ['loop', 'pingpong', 'once'].includes(o.playback) ? o.playback : 'loop', name: String(o.name || 'Untitled scene').slice(0, 80), look: cleanLook(o.look), cam: cleanCam(o.cam), export: cleanExport(o.export), clips };
 }
 
 const STORE = 'pc-scene-v1';
@@ -258,6 +322,13 @@ function nearestText(i, types) {
   return -1;
 }
 function cipherBase(i) { const c = S.clips[i]; if (c.text) return c.text; const k = nearestText(i, ['text']); return k >= 0 ? S.clips[k].text : 'TEXT'; }
+function clipType(i) {
+  const c = S.clips[i];
+  if (c.type === 'text' || (c.type === 'cipher' && c.ownType)) return c.ty;
+  if (c.type === 'cipher') { const k = nearestText(i, ['text']); return k >= 0 ? S.clips[k].ty : c.ty; }
+  const k = nearestText(i, ['text', 'cipher']);
+  return k >= 0 ? clipType(k) : defType();
+}
 function clipString(i, tick = 0) {
   const c = S.clips[i];
   if (c.type === 'text') return c.text;
@@ -294,29 +365,109 @@ function fillEmpty(items, s, makeClone) {
 // ================= layouts (point sets) =================
 const LC = new Map();
 function memo(key, fn) { if (LC.has(key)) return LC.get(key); const v = fn(); v.key = key; LC.set(key, v); if (LC.size > 400) LC.delete(LC.keys().next().value); return v; }
-const lookKey = () => JSON.stringify(S.look);
+const lookKey = () => { const L = S.look; return [L.uniform, L.align, L.roundUp, L.assign, L.gap].join('|'); };
 
-function layoutText(str) {
-  return memo('T' + str, () => {
+// ---- fonts ----
+// Unifont is built in (8x16 bitmaps). Any other name is loaded from Google Fonts if it exists there,
+// otherwise the browser uses an installed font with that name; glyphs are rasterized onto the pixel grid.
+let fontEpoch = 0;
+const FONTS = new Map(); // name -> 'loading' | 'google' | 'system' | 'fallback'
+const isUni = n => !n || /^unifont$/i.test(n.trim());
+function fontState(name) { return isUni(name) ? 'builtin' : FONTS.get(name) || 'loading'; }
+function ensureFont(name) {
+  if (isUni(name) || FONTS.has(name)) return;
+  FONTS.set(name, 'loading');
+  const done = st => { FONTS.set(name, st); fontEpoch++; GC.clear(); LC.clear(); MC.clear(); rebuild(); if (sel && sel.kind === 'clip') { const o = $('fontState'); if (o) o.textContent = fontStateText(name); } };
+  const css = `16px "${name}"`;
+  const sysCheck = () => { try { return document.fonts.check(css) && fontDiffers(name); } catch (e) { return false; } };
+  const link = document.createElement('link'); link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + '&display=block';
+  link.onload = () => document.fonts.load(css).then(f => done(f.length ? 'google' : sysCheck() ? 'system' : 'fallback'), () => done(sysCheck() ? 'system' : 'fallback'));
+  link.onerror = () => { link.remove(); done(sysCheck() ? 'system' : 'fallback'); };
+  document.head.appendChild(link);
+  setTimeout(() => { if (FONTS.get(name) === 'loading') done(sysCheck() ? 'system' : 'fallback'); }, 6000);
+}
+function fontDiffers(name) { // is an installed font with this name actually used?
+  const c = document.createElement('canvas').getContext('2d'), s = 'mmmmmmmmmmlli1WQ@';
+  c.font = '40px monospace'; const a = c.measureText(s).width; c.font = `40px "${name}", monospace`; const b = c.measureText(s).width;
+  c.font = '40px serif'; const a2 = c.measureText(s).width; c.font = `40px "${name}", serif`; const b2 = c.measureText(s).width;
+  return a !== b || a2 !== b2;
+}
+function fontStateText(name) {
+  const s = fontState(name);
+  return s === 'builtin' ? 'Built-in 8×16 bitmap font.' : s === 'google' ? 'Loaded from Google Fonts.' : s === 'system' ? 'Using the font installed on this computer.' : s === 'loading' ? 'Loading…' : 'Not found on Google Fonts or this computer: showing a fallback font.';
+}
+const GC = new Map();
+const GCV = document.createElement('canvas'), GX = GCV.getContext('2d', { willReadFrequently: true });
+function uniGlyph(ch, sc) {
+  const k = 'U' + sc + ch; if (GC.has(k)) return GC.get(k);
+  const g = glyphRows(ch), pts = [];
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 8; x++) if (g[y] & (128 >> x))
+    for (let v = 0; v < sc; v++) for (let u = 0; u < sc; u++) pts.push(x * sc + u, y * sc + v);
+  const o = { adv: 8 * sc, pts }; GC.set(k, o); return o;
+}
+function fontCss(ty, size) { return `${ty.weight} ${size}px "${ty.font}", ${/mono/i.test(ty.font) ? 'monospace' : 'sans-serif'}`; }
+function rasterGlyph(ch, ty, size, asc) {
+  const k = 'R' + fontEpoch + '|' + ty.font + '|' + ty.weight + '|' + size + '|' + ch; if (GC.has(k)) return GC.get(k);
+  GX.font = fontCss(ty, size);
+  const adv = GX.measureText(ch).width, pad = Math.ceil(size * 0.5);
+  const w = Math.ceil(adv + pad * 2) + 2, h = Math.ceil(size * 1.8 + pad * 2);
+  if (GCV.width < w || GCV.height < h) { GCV.width = Math.max(GCV.width, w); GCV.height = Math.max(GCV.height, h); }
+  GX.clearRect(0, 0, GCV.width, GCV.height);
+  GX.font = fontCss(ty, size); GX.textBaseline = 'alphabetic'; GX.fillStyle = '#fff';
+  GX.fillText(ch, pad, pad + asc);
+  const d = GX.getImageData(0, 0, w, h).data, pts = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] >= 128) pts.push(x - pad, y - pad);
+  const o = { adv, pts }; GC.set(k, o); if (GC.size > 3000) GC.delete(GC.keys().next().value); return o;
+}
+function layoutText(str, ty) {
+  ty = ty || defType();
+  if (!isUni(ty.font)) ensureFont(ty.font);
+  return memo('T' + fontEpoch + JSON.stringify(ty) + '\u0001' + str, () => {
+    const uni = isUni(ty.font);
     const lines = str.replace(/\t/g, '  ').split('\n').map(l => [...l]);
-    const rows = lines.length, cols = Math.max(1, ...lines.map(l => l.length));
-    const top = -Math.round(rows * 16 / 2), pts = [], groups = [];
-    lines.forEach((line, li) => {
-      const left = -Math.round(line.length * 8 / 2);
+    const sc = uni ? Math.max(1, Math.round(ty.size / 16)) : 1, size = uni ? 16 * sc : Math.round(ty.size);
+    const mono = uni || ty.mono, k = size / 16;
+    let asc = Math.round(size * 0.8), autoW = 8 * sc;
+    if (!uni) {
+      GX.font = fontCss(ty, size); const m = GX.measureText('Hg');
+      if (m.fontBoundingBoxAscent) asc = Math.round(m.fontBoundingBoxAscent * size / Math.max(1, m.fontBoundingBoxAscent + m.fontBoundingBoxDescent));
+      autoW = Math.max(1, Math.round(Math.max(GX.measureText('M').width, GX.measureText('0').width)));
+    }
+    const cw = uni ? 8 * sc : ty.cellW > 0 ? Math.max(1, Math.round(ty.cellW * k)) : autoW;
+    const baseH = uni ? 16 * sc : mono && ty.cellH > 0 ? Math.round(ty.cellH * k) : Math.round(size * 1.25);
+    const lineH = Math.max(1, Math.round(baseH * ty.lead)), tr = Math.round(ty.track);
+    const glyph = ch => uni ? uniGlyph(ch, sc) : rasterGlyph(ch, ty, size, asc);
+    const L = lines.map(line => {
+      const xs = []; let x = 0;
       line.forEach((ch, ci) => {
-        const g = glyphRows(ch), i0 = pts.length;
-        for (let y = 0; y < 16; y++) for (let x = 0; x < 8; x++)
-          if (g[y] & (128 >> x)) pts.push({ x: left + ci * 8 + x, y: top + li * 16 + y, g: groups.length });
+        const g = glyph(ch);
+        if (mono) { xs.push(ci * (cw + tr) + (uni ? 0 : Math.round((cw - g.adv) / 2))); }
+        else { xs.push(Math.round(x)); x += g.adv + tr; }
+      });
+      const w = !line.length ? 0 : mono ? line.length * cw + (line.length - 1) * tr : Math.round(x - tr);
+      return { line, xs, w };
+    });
+    const maxW = Math.max(1, ...L.map(l => l.w)), rows = lines.length;
+    const totalH = (rows - 1) * lineH + baseH, top = -Math.round(totalH / 2);
+    const pts = [], groups = [];
+    L.forEach((l, li) => {
+      const left = ty.align === 'left' ? -Math.round(maxW / 2) : ty.align === 'right' ? Math.round(maxW / 2) - l.w : -Math.round(l.w / 2);
+      const y0 = top + li * lineH;
+      l.line.forEach((ch, ci) => {
+        const g = glyph(ch), i0 = pts.length, x0 = left + l.xs[ci];
+        for (let q = 0; q < g.pts.length; q += 2) pts.push({ x: x0 + g.pts[q], y: y0 + g.pts[q + 1], g: groups.length });
         if (pts.length > i0) groups.push({ line: li, col: ci, i0, i1: pts.length });
       });
     });
-    return { kind: 'text', str, pts, groups, w: cols * 8, h: rows * 16, sig: lines.map(l => l.length).join(',') };
+    return { kind: 'text', str, ty, pts, groups, w: maxW, h: totalH, sig: lines.map(l => l.length).join(',') };
   });
 }
 
-function layoutSquares(str) {
-  return memo('Q' + lookKey() + str, () => {
-    const T = layoutText(str), L = S.look;
+function layoutSquares(str, ty) {
+  const T = layoutText(str, ty);
+  return memo('Q' + lookKey() + T.key, () => {
+    const L = S.look;
     const gs = T.groups.map(g => {
       const px = [];
       for (let k = g.i0; k < g.i1; k++) px.push({ x: T.pts[k].x, y: T.pts[k].y, src: k });
@@ -338,14 +489,15 @@ function layoutSquares(str) {
       all.forEach(p => pts.push({ x: g.sx + p.col, y: g.sy + p.row, g: gi, src: p.src }));
       groups.push({ sx: g.sx, sy: g.sy, s: g.s, cx: g.sx + g.s / 2, cy: g.sy + g.s / 2, i0, i1: pts.length });
     });
-    return { kind: 'squares', str, pts, groups, maxS, w: T.w, h: T.h };
+    return { kind: 'squares', str, ty, tkey: T.key, pts, groups, maxS, w: T.w, h: T.h };
   });
 }
 
-function layoutBig(str) {
-  return memo('B' + lookKey() + str, () => {
-    const Q = layoutSquares(str), L = S.look, M = Q.groups.length;
-    if (!M) return { kind: 'big', str, pts: [], groups: [], w: 0, h: 0 };
+function layoutBig(str, ty) {
+  const Q0 = layoutSquares(str, ty);
+  return memo('B' + Q0.key, () => {
+    const Q = Q0, L = S.look, M = Q.groups.length;
+    if (!M) return { kind: 'big', str, ty, qkey: Q.key, tkey: Q.tkey, pts: [], groups: [], w: 0, h: 0 };
     const Sz = Math.max(1, L.roundUp ? Math.ceil(Math.sqrt(M)) : Math.floor(Math.sqrt(M)));
     const cell = Q.maxS, gap = L.gap, side = Sz * cell + (Sz - 1) * gap, b0 = -Math.round(side / 2);
     const cellXY = k => [b0 + (k % Sz) * (cell + gap) + cell / 2, b0 + Math.floor(k / Sz) * (cell + gap) + cell / 2];
@@ -383,7 +535,7 @@ function layoutBig(str) {
       for (let i = g.i0; i < g.i1; i++) pts.push({ x: Q.pts[i].x + dx, y: Q.pts[i].y + dy, g: pi, src: i });
       groups.push({ gi: pl.gi, order: ordered && placed.length > 1 ? pi / (placed.length - 1) : null });
     });
-    return { kind: 'big', str, pts, groups, w: side, h: side, grid: Sz };
+    return { kind: 'big', str, ty, qkey: Q.key, tkey: Q.tkey, pts, groups, w: side, h: side, grid: Sz };
   });
 }
 
@@ -428,9 +580,9 @@ function layoutImage(im) {
 function clipLayout(i, tick = 0) {
   const c = S.clips[i];
   if (c.type === 'image') return layoutImage(c.image);
-  if (c.type === 'text' || c.type === 'cipher') return layoutText(clipString(i, tick));
-  const str = clipString(i);
-  return c.type === 'squares' ? layoutSquares(str) : layoutBig(str);
+  if (c.type === 'text' || c.type === 'cipher') return layoutText(clipString(i, tick), clipType(i));
+  const str = clipString(i), ty = clipType(i);
+  return c.type === 'squares' ? layoutSquares(str, ty) : layoutBig(str, ty);
 }
 
 // ================= matching A → B =================
@@ -487,14 +639,14 @@ function matchFor(A, B, tr, rand) {
   const m = tr.match, same = A.str !== undefined && A.str === B.str;
   if (m === 'auto' && same) {
     // text → squares: each letter collapses into its own square
-    if (A.kind === 'text' && B.kind === 'squares')
+    if (A.kind === 'text' && B.kind === 'squares' && A.key === B.tkey)
       return { pairs: B.pts.map(q => ({ a: A.pts[q.src], b: q, g: q.g })), gPos: groupPosFrom(B) };
     // squares → big square: squares move as rigid units
-    if (A.kind === 'squares' && B.kind === 'big')
+    if (A.kind === 'squares' && B.kind === 'big' && A.key === B.qkey)
       return { pairs: B.pts.map(p => ({ a: A.pts[p.src], b: p, g: p.g })), gPos: B.groups.map(g => [A.groups[g.gi].cx, A.groups[g.gi].cy]), gOrder: B.groups.map(g => g.order), rigid: true };
     // text → big square directly
-    if (A.kind === 'text' && B.kind === 'big') {
-      const Q = layoutSquares(B.str);
+    if (A.kind === 'text' && B.kind === 'big' && A.key === B.tkey) {
+      const Q = layoutSquares(B.str, B.ty);
       return { pairs: B.pts.map(p => ({ a: A.pts[Q.pts[p.src].src], b: p, g: p.g })), gPos: B.groups.map(g => [Q.groups[g.gi].cx, Q.groups[g.gi].cy]), gOrder: B.groups.map(g => g.order) };
     }
     // reverse directions: run the forward match and swap ends
@@ -664,11 +816,24 @@ function scheduleSave() {
 
 // ================= render =================
 let W = 0, Hh = 0;
+let exporting = false;
+function placeCanvas(c, l, tp, w, h) { c.style.left = l + 'px'; c.style.top = tp + 'px'; c.style.width = w + 'px'; c.style.height = h + 'px'; }
+function setRenderSize(w, h) {
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  if (FX && (FX.canvas.width !== w || FX.canvas.height !== h)) FX.resize(w, h);
+  W = w; Hh = h;
+}
 function resize() {
-  const dpr = Math.max(1, window.devicePixelRatio || 1), r = stage.getBoundingClientRect();
-  W = Math.max(1, Math.round(r.width * dpr)); Hh = Math.max(1, Math.round(r.height * dpr));
-  cv.width = W; cv.height = Hh;
-  if (FX) FX.resize(W, Hh);
+  if (exporting) return;
+  const dpr = Math.max(1, window.devicePixelRatio || 1), r = stage.getBoundingClientRect(), R = S.look.res;
+  let w, h, l = 0, tp = 0, cw = r.width, ch = r.height;
+  if (R.mode === 'fixed') {
+    w = R.w; h = R.h; const s = Math.min(r.width / w, r.height / h); cw = w * s; ch = h * s; l = (r.width - cw) / 2; tp = (r.height - ch) / 2;
+  } else { w = Math.max(1, Math.round(r.width * dpr)); h = Math.max(1, Math.round(r.height * dpr)); }
+  stage.classList.toggle('fixed', R.mode === 'fixed');
+  stage.style.background = R.mode === 'fixed' ? '' : S.look.bg;
+  placeCanvas(cv, l, tp, cw, ch); if (FX) placeCanvas(FX.canvas, l, tp, cw, ch);
+  setRenderSize(w, h);
 }
 function segAt(t) {
   for (const s of segs) if (t < s.t1) return s;
@@ -742,7 +907,7 @@ void main(){
   const DISP = `#version 300 es
 precision highp float; in vec2 uv; out vec4 o;
 uniform sampler2D s0, s1, s2, s3; uniform vec2 tx, res;
-uniform float haze, inten, disp, sheen, spread, cyc, time; uniform int pal;
+uniform float haze, inten, disp, sheen, spread, cyc, time; uniform int pal; uniform vec3 bg;
 ${NOISE}
 float F(vec2 u){ return texture(s3,u).x + (texture(s1,u).x*.9 + texture(s2,u).x*.75)*haze; }
 float G(vec2 u){ return texture(s1,u).x*.9 + texture(s2,u).x*1.4; }
@@ -774,6 +939,8 @@ void main(){
   float sa = 1. - exp(-sd*inten*3.);
   c = c*(1. - sa*.8) + mix(palette(thick + .08), vec3(1.), .12) * sa * 1.25;
   c = aces(c*1.2);
+  float cov = clamp(max(max(a.r, max(a.g, a.b)), sa), 0., 1.);
+  c = bg*(1. - cov) + c;
   c += (hash(uv*res + fract(time*7.)*91.7) - .5)*.022;
   o = vec4(max(c, 0.), 1.);
 }`;
@@ -870,6 +1037,7 @@ void main(){
     gl.uniform1f(u.haze, T.haze); gl.uniform1f(u.inten, T.intensity * 2); gl.uniform1f(u.disp, T.disp);
     gl.uniform1f(u.sheen, T.sheen); gl.uniform1f(u.spread, T.spread); gl.uniform1f(u.cyc, T.cycle); gl.uniform1f(u.time, time);
     gl.uniform1i(u.pal, PAL[T.palette] ?? 0);
+    { const h = parseInt(S.look.bg.slice(1), 16); gl.uniform3f(u.bg, (h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255); }
     gl.bindVertexArray(fsVao); gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
   return { resize, clear, frame, canvas: cnv };
@@ -880,10 +1048,13 @@ function draw(t, delta = 0) {
   const seg = segAt(t);
   const T = S.look.trail, fxOn = !!(FX && T.on);
   if (fxShown !== fxOn) { fxShown = fxOn; if (FX) { FX.canvas.hidden = !fxOn; if (!fxOn) FX.clear(); } }
-  if (fxOn) ctx.clearRect(0, 0, W, Hh); else { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, Hh); }
+  if (fxOn) ctx.clearRect(0, 0, W, Hh); else { ctx.fillStyle = S.look.bg; ctx.fillRect(0, 0, W, Hh); }
   if (!seg) return;
-  const p = Math.max(1, Math.floor(Math.min(W * 0.9 / ext.w, Hh * 0.82 / ext.h)));
+  const LK = S.look;
+  let p = LK.pxMode === 'fixed' ? LK.px * Hh / 1080 : Math.min(W * 0.9 / ext.w, Hh * 0.82 / ext.h) * LK.scale;
+  p = p >= 1 ? Math.floor(p) : Math.max(0.05, p);
   const ox = Math.floor(W / 2), oy = Math.floor(Hh / 2);
+  const PR = makeProj(camAt(t), W, Hh, ox, oy), zp = p * PR.z, scr = [0, 0], scr2 = [0, 0];
   const inset = S.look.seams && p >= 3 ? Math.max(1, Math.round(p * 0.1)) : 0, sz = p - inset, snap = S.look.snap;
   let nS = 0;
 
@@ -894,7 +1065,7 @@ function draw(t, delta = 0) {
     if (c.type === 'cipher' && c.flicker > 0 && c.mode !== 'hex') {
       const lt = t - seg.t0, per = 1 / c.flicker;
       const tick = lt < per || lt >= c.hold - per ? 0 : Math.floor(lt * c.flicker);
-      if (tick) L = layoutText(clipString(seg.i, tick));
+      if (tick) L = layoutText(clipString(seg.i, tick), clipType(seg.i));
     }
     pts = L.pts; hud = TYPES[c.type] + ' ' + (seg.i + 1); count = L.pts.length;
   } else {
@@ -927,7 +1098,7 @@ function draw(t, delta = 0) {
       const amt = tr.trail ?? 1, emit = fxOn && delta && amt > 0 && t >= T.start && t <= Math.min(T.end, total);
       const spread = 1 / Math.max(16, ext.w);
       if (emit && SPL.length < m.n * 6) SPL = new Float32Array(m.n * 6);
-      const splatRad = Math.max(0.75, p / 4 * T.width);
+      const splatRad = Math.max(0.75, zp / 4 * T.width);
       for (let i = 0; i < m.n; i++) {
         const u = pos(i, lt, cur);
         P[i * 2] = cur[0]; P[i * 2 + 1] = cur[1];
@@ -938,64 +1109,102 @@ function draw(t, delta = 0) {
         const env = Math.sin(Math.PI * clamp01(Math.min(Math.max(u, uP), 1)));
         const val = amt * 0.5 * (0.5 + 0.5 * env);
         // adaptive substeps: trace the real eased, axis-split path between last frame and now
-        const distPx = Math.hypot(cur[0] - prev[0], cur[1] - prev[1]) * p / 2;
+        const distPx = Math.hypot(cur[0] - prev[0], cur[1] - prev[1]) * zp / 2;
         const N = Math.min(24, Math.max(1, Math.ceil(distPx / Math.max(1, splatRad * 0.75))));
         if ((nS + N) * 6 > SPL.length) { const g = new Float32Array(Math.max(SPL.length * 2, (nS + N) * 6 + 6 * 1024)); g.set(SPL); SPL = g; }
         let ax = prev[0], ay = prev[1];
         for (let s = 1; s <= N; s++) {
           if (s < N) pos(i, lt - delta + delta * s / N, sub); else { sub[0] = cur[0]; sub[1] = cur[1]; }
           const o = nS * 6;
-          SPL[o] = (ox + (ax + .5) * p) / 2; SPL[o + 1] = (Hh - (oy + (ay + .5) * p)) / 2;
-          SPL[o + 2] = (ox + (sub[0] + .5) * p) / 2; SPL[o + 3] = (Hh - (oy + (sub[1] + .5) * p)) / 2;
-          SPL[o + 4] = val; SPL[o + 5] = s === N ? 1 : 0;
-          nS++; ax = sub[0]; ay = sub[1];
+          if (PR.proj((ax + .5) * p, (ay + .5) * p, scr) && PR.proj((sub[0] + .5) * p, (sub[1] + .5) * p, scr2)) {
+            SPL[o] = scr[0] / 2; SPL[o + 1] = (Hh - scr[1]) / 2; SPL[o + 2] = scr2[0] / 2; SPL[o + 3] = (Hh - scr2[1]) / 2;
+            SPL[o + 4] = val; SPL[o + 5] = s === N ? 1 : 0; nS++;
+          }
+          ax = sub[0]; ay = sub[1];
         }
       }
     }
   }
-  if (fxOn) FX.frame(delta, t, SPL, nS, T, Math.max(0.75, p / 4 * T.width));
+  if (fxOn) FX.frame(delta, t, SPL, nS, T, Math.max(0.75, zp / 4 * T.width));
 
-  ctx.fillStyle = '#fff';
-  const plot = (x, y) => {
-    if (snap) { x = Math.round(x); y = Math.round(y); }
-    ctx.fillRect(Math.round(ox + x * p) + inset, Math.round(oy + y * p) + inset, sz, sz);
-  };
-  if (pts) for (const q of pts) plot(q.x, q.y);
-  else for (let i = 0; i < m.n; i++) plot(P[i * 2], P[i * 2 + 1]);
-  if (seg.kind === 'trans' && m && m.n && showGuide && seg.tr.fo.type !== 'plain' && sel && sel.kind === 'trans' && sel.id === S.clips[seg.i].id) drawGuide(seg, m, t - seg.t0, p, ox, oy);
+  ctx.fillStyle = LK.fg;
+  const ins = inset / p, n = pts ? pts.length : m.n;
+  if (PR.flat) { // fast path: axis-aligned squares, edges rounded so neighbours never leave seams
+    const cx = PR.cx, cy = PR.cy, iz = inset * PR.z;
+    for (let i = 0; i < n; i++) {
+      let x = pts ? pts[i].x : P[i * 2], y = pts ? pts[i].y : P[i * 2 + 1];
+      if (snap) { x = Math.round(x); y = Math.round(y); }
+      const x0 = Math.round(cx + x * zp), y0 = Math.round(cy + y * zp), x1 = Math.round(cx + (x + 1) * zp), y1 = Math.round(cy + (y + 1) * zp);
+      ctx.fillRect(x0 + iz, y0 + iz, Math.max(1, x1 - x0 - iz), Math.max(1, y1 - y0 - iz));
+    }
+  } else { // tilted / rolled camera: project every pixel's corners, fill as one path
+    const a = [0, 0], b = [0, 0], c = [0, 0], d = [0, 0];
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      let x = pts ? pts[i].x : P[i * 2], y = pts ? pts[i].y : P[i * 2 + 1];
+      if (snap) { x = Math.round(x); y = Math.round(y); }
+      const xa = (x + ins) * p, ya = (y + ins) * p, xb = (x + 1) * p, yb = (y + 1) * p;
+      if (!PR.proj(xa, ya, a) || !PR.proj(xb, ya, b) || !PR.proj(xb, yb, c) || !PR.proj(xa, yb, d)) continue;
+      ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath();
+    }
+    ctx.fill();
+  }
+  if (!exporting && seg.kind === 'trans' && m && m.n && showGuide && seg.tr.fo.type !== 'plain' && sel && sel.kind === 'trans' && sel.id === S.clips[seg.i].id) drawGuide(seg, m, t - seg.t0, p, PR);
   const h = (seg.kind === 'hold' ? 'Hold · ' : 'Transition · ') + hud + ' · ' + count + ' px';
   if (h !== lastHud) { $('hud').textContent = h; lastHud = h; }
 }
 
 let showGuide = true;
-function drawGuide(seg, m, lt, p, ox, oy) {
+function drawGuide(seg, m, lt, p, PR) {
   const F = foField(seg.tr.fo, m, clamp01(lt / (seg.t1 - seg.t0)));
-  const X = x => ox + (m.bx + x) * p, Y = y => oy + (m.by + y) * p;
+  const q = [0, 0], pt = (x, y) => PR.proj((m.bx + x) * p, (m.by + y) * p, q) ? [q[0], q[1]] : null;
+  const poly = (list, close) => { let first = true; for (const [x, y] of list) { const s = pt(x, y); if (!s) { first = true; continue; } first ? ctx.moveTo(s[0], s[1]) : ctx.lineTo(s[0], s[1]); first = false; } if (close) ctx.closePath(); };
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   ctx.save(); ctx.lineWidth = 1.25 * dpr;
-  // outline of the shape bounds
-  ctx.strokeStyle = 'rgba(160,190,255,.18)'; ctx.setLineDash([]); ctx.strokeRect(X(0), Y(0), m.bw * p, m.bh * p);
+  ctx.strokeStyle = 'rgba(160,190,255,.18)'; ctx.setLineDash([]); ctx.beginPath(); poly([[0, 0], [m.bw, 0], [m.bw, m.bh], [0, m.bh]], true); ctx.stroke();
   const iso = [[F.A, [6 * dpr, 5 * dpr], 'rgba(120,200,255,.8)'], [F.A - F.soft, [], 'rgba(255,214,120,.9)']];
   for (const [dn0, dash, col] of iso) {
     const d = F.inv ? 1 - dn0 : dn0;
     ctx.strokeStyle = col; ctx.setLineDash(dash); ctx.beginPath();
     if (F.type === 'linear') {
-      const raw = F.d0 + d / F.dk, cx = F.c * raw, cy = F.s * raw, L = 4 * Math.max(m.bw, m.bh);
-      ctx.moveTo(X(cx - F.s * L), Y(cy + F.c * L)); ctx.lineTo(X(cx + F.s * L), Y(cy - F.c * L));
+      const raw = F.d0 + d / F.dk, cx = F.c * raw, cy = F.s * raw, L = 4 * Math.max(m.bw, m.bh), list = [];
+      for (let k = -8; k <= 8; k++) list.push([cx - F.s * L * k / 8, cy + F.c * L * k / 8]);
+      poly(list, false);
     } else if (d > 0) {
-      if (F.type === 'spherical') ctx.arc(X(F.Cx), Y(F.Cy), d / F.R * p, 0, Math.PI * 2);
-      else { const hx = d / F.R / F.hx, hy = d / F.R / F.hy; ctx.rect(X(F.Cx - hx), Y(F.Cy - hy), 2 * hx * p, 2 * hy * p); }
+      if (F.type === 'spherical') { const r = d / F.R, list = []; for (let k = 0; k < 72; k++) { const a = k / 72 * Math.PI * 2; list.push([F.Cx + r * Math.cos(a), F.Cy + r * Math.sin(a)]); } poly(list, true); }
+      else { const hx = d / F.R / F.hx, hy = d / F.R / F.hy; poly([[F.Cx - hx, F.Cy - hy], [F.Cx + hx, F.Cy - hy], [F.Cx + hx, F.Cy + hy], [F.Cx - hx, F.Cy + hy]], true); }
     }
     ctx.stroke();
   }
   ctx.setLineDash([]); ctx.strokeStyle = 'rgba(255,214,120,.9)'; ctx.beginPath();
-  if (F.type === 'linear') { // direction arrow from the shape center
-    const cx = X(m.bw / 2), cy = Y(m.bh / 2), r = 14 * dpr, ex = cx + F.c * r * 2, ey = cy + F.s * r * 2;
-    ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
+  const c0 = F.type === 'linear' ? pt(m.bw / 2, m.bh / 2) : pt(F.Cx, F.Cy);
+  if (c0 && F.type === 'linear') {
+    const r = 28 * dpr, ex = c0[0] + F.c * r, ey = c0[1] + F.s * r;
+    ctx.moveTo(c0[0], c0[1]); ctx.lineTo(ex, ey);
     ctx.moveTo(ex, ey); ctx.lineTo(ex - (F.c * 7 - F.s * 5) * dpr, ey - (F.s * 7 + F.c * 5) * dpr);
     ctx.moveTo(ex, ey); ctx.lineTo(ex - (F.c * 7 + F.s * 5) * dpr, ey - (F.s * 7 - F.c * 5) * dpr);
-  } else { const cx = X(F.Cx), cy = Y(F.Cy), r = 6 * dpr; ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); }
+  } else if (c0) { const r = 6 * dpr; ctx.moveTo(c0[0] - r, c0[1]); ctx.lineTo(c0[0] + r, c0[1]); ctx.moveTo(c0[0], c0[1] - r); ctx.lineTo(c0[0], c0[1] + r); }
   ctx.stroke(); ctx.restore();
+}
+
+// ================= camera =================
+function camAt(t) { const v = {}; for (const p in CAM_PARAMS) v[p] = foValue(S.cam, p, t); return v; }
+function makeProj(v, W, H, ox, oy) {
+  const D = Math.PI / 180, a = v.tiltX * D, b = v.tiltY * D, r = v.roll * D, z = Math.max(0.01, v.zoom);
+  const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b), cr = Math.cos(r), sr = Math.sin(r);
+  const f = (H / 2) / Math.tan(Math.min(170, Math.max(1, v.fov)) * D / 2);
+  const cx = ox - v.x * W / 2, cy = oy + v.y * H / 2;
+  const flat = Math.abs(v.tiltX) < 1e-6 && Math.abs(v.tiltY) < 1e-6 && Math.abs(v.roll) < 1e-6;
+  return {
+    flat, z, cx, cy,
+    proj(x, y, out) { // x,y: pixels from the composition center before the camera
+      x *= z; y *= z;
+      const y1 = y * ca, z1 = y * sa, x2 = x * cb + z1 * sb, z2 = -x * sb + z1 * cb, d = f + z2;
+      if (d < f * 0.05) return false;
+      const s = f / d, X = x2 * s, Y = y1 * s;
+      out[0] = cx + X * cr - Y * sr; out[1] = cy + X * sr + Y * cr; return true;
+    },
+  };
 }
 
 // ================= timeline =================
@@ -1054,6 +1263,9 @@ function renderTimeline() {
     const ax0 = ts >= total ? endX : tToX(ts), ax1 = te >= total ? endX : tToX(te);
     const isSel = sel && sel.kind === 'trail';
     h += `<div class="adj${T.on ? '' : ' off'}${isSel ? ' sel' : ''}" data-k="trail" style="left:${ax0}px;width:${Math.max(18, ax1 - ax0)}px" title="Trail adjustment layer">${T.on ? 'Trail · ' + esc({ iridescent: 'Oil slick', pearl: 'Pearl', spectral: 'Spectral', aurora: 'Aurora' }[T.palette] || '') : 'Trail off'}<div class="grip l" data-grip="tstart"></div><div class="grip" data-grip="tend"></div></div>`; }
+  { const endX = (items.filter(it => it.t1 > it.t0).pop() || { x1: 0 }).x1, isSel = sel && sel.kind === 'cam';
+    const kd = camKeyTimes().map(k => `<i class="kd" style="left:${Math.max(4, Math.min(endX - 4, k >= total ? endX : tToX(k)))}px"></i>`).join('');
+    h += `<div class="cambar${isSel ? ' sel' : ''}" data-k="cam" style="left:0;width:${Math.max(40, endX)}px" title="Camera (click to edit, click again to move the playhead)">Camera${kd}</div>`; }
   h += `<div class="phead" id="phead"></div><div class="drop" id="drop" hidden></div>`;
   track.innerHTML = h;
   track.style.width = width + 'px';
@@ -1069,6 +1281,11 @@ track.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
   const r = track.getBoundingClientRect(), x = e.clientX - r.left;
   const grip = e.target.closest('.grip'), blk = e.target.closest('.blk'), adj = e.target.closest('.adj');
+  if (e.target.closest('.cambar')) {
+    track.setPointerCapture(e.pointerId);
+    if (sel?.kind !== 'cam') { sel = { kind: 'cam', id: 'cam' }; renderInspector(); renderTimeline(); }
+    drag = { mode: 'scrub' }; scrubTo(x); return;
+  }
   if (adj) {
     track.setPointerCapture(e.pointerId);
     const T = S.look.trail, s0 = Math.max(0, Math.min(T.start, total)), e0 = Math.max(s0, Math.min(T.end, total));
@@ -1151,7 +1368,7 @@ const opt = (v, cur, label) => `<option value="${v}"${String(v) === String(cur) 
 function rng(path, label, v, min, max, step, fmt = 's') {
   return `<div class="row"><label for="f-${path}">${label}</label><output data-out="${path}" data-fmt="${fmt}">${fmtVal(v, fmt)}</output><input type="range" id="f-${path}" data-path="${path}" min="${min}" max="${max}" step="${step}" value="${v}"></div>`;
 }
-function fmtVal(v, f) { v = +v; return f === 's' ? v.toFixed(v < 1 ? 2 : 1) + 's' : f === '%' ? Math.round(v * 100) + '%' : f === 'px' ? v + ' px' : f === '/s' ? (v ? v + '/s' : 'off') : f === 'x' ? v.toFixed(2) + '×' : f === 'deg' ? Math.round(v) + '°' : f === 'f2' ? v.toFixed(2) : String(v); }
+function fmtVal(v, f) { v = +v; return f === 's' ? v.toFixed(v < 1 ? 2 : 1) + 's' : f === '%' ? Math.round(v * 100) + '%' : f === 'px' ? v + ' px' : f === '/s' ? (v ? v + '/s' : 'off') : f === 'x' ? v.toFixed(2) + '×' : f === 'deg' ? Math.round(v) + '°' : f === 'f2' ? v.toFixed(2) : f === 'auto' ? (v ? String(v) : 'auto') : String(v); }
 function sel_(path, label, cur, opts) { return `<div class="row"><label for="f-${path}">${label}</label><select id="f-${path}" data-path="${path}">${opts.map(o => opt(o[0], cur, o[1])).join('')}</select></div>`; }
 function chk(path, label, v) { return `<label class="check"><input type="checkbox" id="f-${path}" data-path="${path}"${v ? ' checked' : ''}> ${label}</label>`; }
 
@@ -1160,7 +1377,7 @@ function renderInspector() {
   $('mode').value = S.playback || 'loop';
   let h = `<h1>Pixel Collapse</h1>`;
   const i = sel ? clipIndex(sel.id) : -1;
-  if (i < 0 && sel?.kind !== 'trail') sel = null;
+  if (i < 0 && sel?.kind !== 'trail' && sel?.kind !== 'cam') sel = null;
   if (sel && sel.kind === 'clip') {
     const c = S.clips[i];
     h += `<div class="group"><div class="label"><span>${esc(TYPES[c.type])} · block ${i + 1}</span></div>`;
@@ -1181,6 +1398,7 @@ function renderInspector() {
       h += rng('clip.image.threshold', 'Threshold', c.image.threshold, 1, 254, 1, 'n');
       h += chk('clip.image.invert', 'Invert (black shapes on white)', c.image.invert);
     }
+    if (c.type === 'text' || c.type === 'cipher') h += `</div>` + typeGroup(c, i) + `<div class="group">`;
     if (c.type === 'squares' || c.type === 'bigsquare') h += `<div class="hint">Built from the nearest text or cipher block: “${esc(clipString(i).replace(/\n/g, ' / ') || 'none')}”. Square settings are under Look.</div>`;
     h += `<div class="btns"><button data-act="left" aria-label="Move earlier">◀ Move</button><button data-act="right" aria-label="Move later">Move ▶</button><button data-act="dup">Duplicate</button><button data-act="del">Delete</button></div></div>`;
   } else if (sel && sel.kind === 'trail') {
@@ -1229,24 +1447,113 @@ function renderInspector() {
     h += sel_('trans.match', 'Pixel matching', c.trans.match, [['auto', 'Auto'], ['letters', 'Letter by letter'], ['rows', 'By rows'], ['random', 'Random']]);
     h += `<div class="hint">Auto: letters collapse into their own squares, squares move as units into the big square (center out when order is Random), same-shaped texts morph letter by letter, everything else by rows.</div>`;
     h += `<div class="btns"><button data-act="reseedTr">New random seed</button></div></div>`;
+  } else if (sel && sel.kind === 'cam') {
+    const C = S.cam;
+    h += `<div class="group"><div class="label"><span>Camera</span></div>`;
+    h += `<div class="keynav"><button data-act="ckprev" title="Previous camera key">◂ key</button><button data-act="cknext" title="Next camera key">key ▸</button><output id="camT">${tl.toFixed(2)}s</output></div>`;
+    h += camRow('zoom', 'Zoom', 0.1, 8, 0.01, 'x') + camRow('x', 'Position X', -2, 2, 0.01, 'f2') + camRow('y', 'Position Y', -2, 2, 0.01, 'f2');
+    h += camRow('roll', 'Roll', -180, 180, 1, 'deg') + camRow('tiltX', 'Tilt (up / down)', -85, 85, 1, 'deg') + camRow('tiltY', 'Pan angle (left / right)', -85, 85, 1, 'deg');
+    h += camRow('fov', 'Field of view', 5, 120, 1, 'deg');
+    h += sel_('cam.interp', 'Key interpolation', C.interp, [['ease', 'Ease in-out'], ['linear', 'Linear']]);
+    h += `<div class="btns"><button data-act="camReset">Reset camera</button></div>`;
+    h += `<div class="hint">◆ sets or removes a key at the playhead (alt-click clears that parameter). Once a parameter has keys, moving its slider keys it automatically. Wide field of view = strong perspective when tilting.</div></div>`;
   } else {
-    h += `<div class="hint">Select a block, a transition or the Trail bar in the timeline to edit it.</div>`;
+    h += `<div class="hint">Select a block, a transition, the Camera bar or the Trail bar in the timeline to edit it.</div>`;
   }
-  const L = S.look;
-  h += `<div class="group"><div class="label"><span>Look</span></div>`;
+  ins.innerHTML = h;
+  drawRamp();
+}
+function typeGroup(c, i) {
+  const y = c.ty; let h = `<div class="group"><div class="label"><span>Type</span></div>`;
+  if (c.type === 'cipher') {
+    h += chk('clip.ownType', 'Own type settings', c.ownType);
+    if (!c.ownType) { const u = clipType(i); return h + `<div class="hint">Uses the nearest text block's type: ${esc(u.font)}, ${u.size}px.</div></div>`; }
+  }
+  const uni = isUni(y.font);
+  h += `<div class="row"><label for="f-clip.ty.font">Font</label></div><input type="text" list="fontList" id="f-clip.ty.font" data-path="clip.ty.font" data-commit="1" value="${esc(y.font)}" spellcheck="false" autocomplete="off">`;
+  h += `<div class="hint" id="fontState">${esc(fontStateText(y.font))} Type any Google Fonts or installed font name, then press Enter.</div>`;
+  h += rng('clip.ty.size', 'Size', y.size, uni ? 16 : 6, uni ? 96 : 120, uni ? 16 : 1, 'px');
+  if (!uni) h += sel_('clip.ty.weight', 'Weight', y.weight, [['300', 'Light'], ['400', 'Regular'], ['500', 'Medium'], ['700', 'Bold'], ['900', 'Black']]);
+  h += rng('clip.ty.track', 'Letter spacing', y.track, -8, 32, 1, 'px') + rng('clip.ty.lead', 'Line spacing', y.lead, 0.5, 3, 0.05, 'x');
+  h += sel_('clip.ty.align', 'Alignment', y.align, [['left', 'Left'], ['center', 'Center'], ['right', 'Right']]);
+  if (uni) h += `<div class="hint">Unifont sits on a fixed 8×16 grid, so lines behave like monospace. Size steps in whole multiples (16, 32, 48 …).</div>`;
+  else {
+    h += chk('clip.ty.mono', 'Fixed cell grid (monospace)', y.mono);
+    if (y.mono) h += rng('clip.ty.cellW', 'Cell width', y.cellW, 0, 32, 0.5, 'auto') + rng('clip.ty.cellH', 'Cell height', y.cellH, 0, 48, 0.5, 'auto') + `<div class="hint">Cell size measured at 16px, scales with Size. 0 = auto from the font. 8 × 16 = Unifont's grid.</div>`;
+    h += `<div class="hint">Glyphs are rasterized onto the pixel grid. In Auto-fit framing, Size changes detail rather than size on screen.</div>`;
+  }
+  h += `<div class="btns"><button data-act="tyAll">Apply to all text blocks</button></div></div>`;
+  return h;
+}
+function keyStateT(o, p, t, tol) { const K = o.k[p]; return !K || !K.length ? '' : K.some(k => Math.abs(k[0] - t) < tol) ? ' on' : ' has'; }
+function camRow(p, label, min, max, step, fmt) {
+  const v = foValue(S.cam, p, tl);
+  return `<div class="row"><label for="cam-${p}">${label}</label><span class="kv"><output data-out="cam.${p}" data-fmt="${fmt}">${fmtVal(v, fmt)}</output><button class="key${keyStateT(S.cam, p, tl, CAM_TOL)}" data-ckey="${p}" title="Keyframe ${label} at the playhead" aria-label="Keyframe ${label}">◆</button></span><input type="range" id="cam-${p}" data-cam="${p}" min="${min}" max="${max}" step="${step}" value="${v}"></div>`;
+}
+const CAM_TOL = 0.02;
+function camKeyTimes() { const s = new Set(); for (const p in S.cam.k) S.cam.k[p].forEach(k => s.add(Math.round(k[0] * 1000) / 1000)); return [...s].sort((a, b) => a - b); }
+let camSyncT = -1;
+function syncCamUI(force) {
+  if (!sel || sel.kind !== 'cam') return;
+  if (!force && tl === camSyncT) return; camSyncT = tl;
+  const o = $('camT'); if (o) o.textContent = tl.toFixed(2) + 's';
+  document.querySelectorAll('#insp [data-cam]').forEach(el => {
+    const p = el.dataset.cam, v = foValue(S.cam, p, tl);
+    if (el !== foDragEl) el.value = v;
+    const out = document.querySelector(`[data-out="cam.${p}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
+    const b = document.querySelector(`#insp [data-ckey="${p}"]`); if (b) b.className = 'key' + keyStateT(S.cam, p, tl, CAM_TOL);
+  });
+}
+function setKeyT(o, p, t, v, tol) {
+  const K = o.k[p] || (o.k[p] = []);
+  const j = K.findIndex(k => Math.abs(k[0] - t) < tol);
+  if (j >= 0) K[j][1] = v; else { K.push([Math.round(t * 1000) / 1000, v]); K.sort((a, b) => a[0] - b[0]); }
+}
+// ---- left panel: look, work area, export, scene ----
+const EXP_PRESETS = { fhd: [1920, 1080, 'Full HD 1920×1080'], hd: [1280, 720, 'HD 1280×720'], uhd: [3840, 2160, '4K 3840×2160'], sq: [1080, 1080, 'Square 1080×1080'], vert: [1080, 1920, 'Vertical 1080×1920'], work: [0, 0, 'Work area size'], custom: [0, 0, 'Custom'] };
+function numIn(path, label, v, min, max) { return `<label>${label}<input type="number" data-path="${path}" data-commit="1" min="${min}" max="${max}" value="${v}"></label>`; }
+function renderSide() {
+  const L = S.look, E = S.export, R = L.res;
+  let h = `<div class="group"><div class="label"><span>Look</span></div>`;
+  h += `<div class="pair"><label>Background<input type="color" data-path="look.bg" value="${L.bg}"></label><label>Pixels<input type="color" data-path="look.fg" value="${L.fg}"></label></div>`;
+  h += sel_('look.pxMode', 'Framing', L.pxMode, [['fit', 'Auto-fit'], ['fixed', 'Fixed pixel size']]);
+  h += L.pxMode === 'fit' ? rng('look.scale', 'Overall size', L.scale, 0.1, 1.5, 0.01, '%') : rng('look.px', 'Pixel size (at 1080p)', L.px, 1, 40, 0.5, 'px');
   h += chk('look.snap', 'Snap to pixel grid', L.snap) + chk('look.seams', 'Show pixel seams', L.seams);
   h += sel_('look.uniform', 'Square size', L.uniform ? '1' : '0', [['1', 'Uniform (duplicate to fill)'], ['0', 'Natural ⌊√N⌋']]);
   h += sel_('look.align', 'Square alignment', L.align, [['bottom', 'Baseline'], ['center', 'Center'], ['top', 'Top']]);
   h += sel_('look.roundUp', 'Big square grid', L.roundUp ? '1' : '0', [['1', 'Round up (duplicate to fill)'], ['0', 'Round down (overlap)']]);
   h += sel_('look.assign', 'Big square build', L.assign, [['center', 'Center out'], ['grid', 'Grid packing']]);
   h += rng('look.gap', 'Gap between squares', L.gap, 0, 4, 1, 'px') + `</div>`;
+  h += `<div class="group"><div class="label"><span>Work area</span></div>`;
+  h += sel_('look.res.mode', 'Resolution', R.mode, [['fit', 'Fill window'], ['fixed', 'Fixed resolution']]);
+  if (R.mode === 'fixed') {
+    h += `<div class="pair">${numIn('look.res.w', 'Width', R.w, 16, 7680)}${numIn('look.res.h', 'Height', R.h, 16, 4320)}</div>`;
+    h += `<div class="btns">${[[1920, 1080, '16:9'], [1080, 1080, '1:1'], [1080, 1920, '9:16'], [1080, 1350, '4:5']].map(([w, hh, l]) => `<button data-res="${w},${hh}">${l}</button>`).join('')}</div>`;
+    h += `<div class="hint">Renders at exactly this size and scales the preview to fit, so the framing never changes with the window.</div>`;
+  }
+  h += `</div>`;
+  h += `<div class="group"><div class="label"><span>Export</span></div>`;
+  h += sel_('export.fmt', 'Format', E.fmt, [['mp4', 'MP4 video'], ['png', 'PNG sequence (.zip)']]);
+  h += sel_('export.preset', 'Size', E.preset, Object.entries(EXP_PRESETS).map(([k, v]) => [k, v[2]]));
+  if (E.preset === 'custom') h += `<div class="pair">${numIn('export.w', 'Width', E.w, 16, 7680)}${numIn('export.h', 'Height', E.h, 16, 4320)}</div>`;
+  h += `<div class="pair">${numIn('export.fps', 'FPS', E.fps, 1, 120)}<label>Length<output id="expLen">${expLenText()}</output></label></div>`;
+  h += `<div class="btns"><button class="primary" data-act="export" id="expBtn">${exporting ? 'Cancel' : 'Export'}</button></div>`;
+  h += `<div class="prog" aria-hidden="true"><i id="expProg"></i></div><div class="status" id="expStatus" role="status"></div>`;
+  h += `<div class="hint">Renders one full pass of the timeline (ping-pong: there and back), including the trail. The framing matches the work area, scaled to the export size.</div></div>`;
   h += `<div class="group"><div class="label"><span>Scene</span></div>`;
   h += `<input type="text" id="f-scene.name" data-path="scene.name" value="${esc(S.name)}" aria-label="Scene name">`;
   h += `<div class="btns"><button data-act="save">Save JSON</button><button data-act="load">Load JSON</button><button data-act="copy">Copy JSON</button><button data-act="reset">Example scene</button></div>`;
   h += `<div class="status" id="status" role="status"></div><div class="hint">The current scene is also kept in this browser automatically.</div></div>`;
-  ins.innerHTML = h;
-  drawRamp();
+  $('sideBody').innerHTML = h;
 }
+function expDur() { return S.playback === 'pingpong' ? 2 * total : total; }
+function exportSize() {
+  const E = S.export;
+  if (E.preset === 'work') return S.look.res.mode === 'fixed' ? [S.look.res.w, S.look.res.h] : [W, Hh];
+  const p = EXP_PRESETS[E.preset]; return p && p[0] ? [p[0], p[1]] : [E.w, E.h];
+}
+function expLenText() { const [w, h] = exportSize(); return expDur().toFixed(1) + 's · ' + Math.max(1, Math.round(expDur() * S.export.fps)) + ' fr · ' + w + '×' + h; }
+function onPanels(ev, fn) { [$('insp'), $('side')].forEach(el => el.addEventListener(ev, fn)); }
 function curTau(i) { const s = segs.find(s => s.kind === 'trans' && s.i === i); return s ? clamp01((tl - s.t0) / Math.max(1e-6, s.t1 - s.t0)) : 0; }
 function foKeyTimes(fo) { const s = new Set(); for (const p in fo.k) if (p !== 'sweep' || fo.type !== 'plain') fo.k[p].forEach(k => s.add(Math.round(k[0] * 1000) / 1000)); return [...s].sort((a, b) => a - b); }
 function keyState(fo, p, tau) { const K = fo.k[p]; return !K || !K.length ? '' : K.some(k => Math.abs(k[0] - tau) < 0.006) ? ' on' : ' has'; }
@@ -1304,22 +1611,22 @@ function drawRamp() {
 let rampDrag = null;
 function rampPt(e) { const R = rampCtx(), r = R.cv2.getBoundingClientRect(); return [clamp01((e.clientX - r.left - RP) / (r.width - 2 * RP)), clamp01(1 - (e.clientY - r.top - RP) / (r.height - 2 * RP)), r]; }
 function rampHit(fo, e) { const [x, y, r] = rampPt(e), sx = r.width - 2 * RP, sy = r.height - 2 * RP; let best = -1, bd = 10; fo.ramp.forEach((q, k) => { const d = Math.hypot((q[0] - x) * sx, (q[1] - y) * sy); if (d < bd) { bd = d; best = k; } }); return best; }
-$('insp').addEventListener('pointerdown', e => {
+onPanels('pointerdown', e => {
   if (e.target.dataset && e.target.dataset.fo) foDragEl = e.target;
   if (e.target.id !== 'ramp' || !sel || sel.kind !== 'trans') return;
   const fo = S.clips[clipIndex(sel.id)].trans.fo; let k = rampHit(fo, e);
   if (k < 0) { const [x, y] = rampPt(e); if (x <= 0.005 || x >= 0.995) return; fo.ramp.push([x, y]); fo.ramp.sort((a, b) => a[0] - b[0]); k = fo.ramp.findIndex(q => q[0] === x && q[1] === y); }
   rampDrag = { k }; e.target.setPointerCapture(e.pointerId); drawRamp(); scheduleSave();
 });
-$('insp').addEventListener('pointermove', e => {
+onPanels('pointermove', e => {
   if (!rampDrag || e.target.id !== 'ramp') return;
   const fo = S.clips[clipIndex(sel.id)].trans.fo, R = fo.ramp, k = rampDrag.k, [x, y] = rampPt(e);
   R[k][1] = Math.round(y * 1000) / 1000;
   if (k > 0 && k < R.length - 1) R[k][0] = Math.round(Math.min(R[k + 1][0] - 0.01, Math.max(R[k - 1][0] + 0.01, x)) * 1000) / 1000;
   drawRamp(); scheduleSave();
 });
-$('insp').addEventListener('pointerup', () => { if (rampDrag) { rampDrag = null; drawRamp(); } });
-$('insp').addEventListener('dblclick', e => {
+onPanels('pointerup', () => { if (rampDrag) { rampDrag = null; drawRamp(); } });
+onPanels('dblclick', e => {
   if (e.target.id !== 'ramp' || !sel || sel.kind !== 'trans') return;
   const fo = S.clips[clipIndex(sel.id)].trans.fo, k = rampHit(fo, e);
   if (k > 0 && k < fo.ramp.length - 1) { fo.ramp.splice(k, 1); drawRamp(); scheduleSave(); }
@@ -1336,28 +1643,53 @@ function syncInspectorValues() {
 }
 function targetFor(path) {
   const [root, ...rest] = path.split('.');
-  let o = root === 'look' ? S.look : root === 'scene' ? S : null;
+  let o = root === 'look' ? S.look : root === 'scene' ? S : root === 'export' ? S.export : root === 'cam' ? S.cam : null;
   if (root === 'clip' || root === 'trans') { const c = S.clips[clipIndex(sel.id)]; o = root === 'clip' ? c : c.trans; }
   for (let k = 0; k < rest.length - 1; k++) o = o[rest[k]];
   return [o, rest[rest.length - 1]];
 }
-$('insp').addEventListener('input', e => {
+onPanels('input', e => {
   if (e.target.dataset.fo && sel && sel.kind === 'trans') {
     const i = clipIndex(sel.id), fo = S.clips[i].trans.fo, p = e.target.dataset.fo, v = parseFloat(e.target.value), tau = curTau(i);
     if (fo.k[p] && fo.k[p].length) setKey(fo, p, tau, v); else fo[p] = v;
     foDragEl = e.target; syncFoUI(true); renderTimeline(); scheduleSave(); return;
   }
-  const el = e.target, path = el.dataset.path; if (!path || !sel && !/^(look|scene)/.test(path)) return;
+  if (e.target.dataset.cam) {
+    const p = e.target.dataset.cam, v = parseFloat(e.target.value);
+    if (S.cam.k[p] && S.cam.k[p].length) setKeyT(S.cam, p, tl, v, CAM_TOL); else S.cam[p] = v;
+    foDragEl = e.target; syncCamUI(true); renderTimeline(); scheduleSave(); return;
+  }
+  if (e.target.dataset.commit) return;
+  applyPath(e.target);
+});
+onPanels('change', e => { if (e.target.dataset.commit) applyPath(e.target); });
+function applyPath(el) {
+  const path = el.dataset.path; if (!path || !sel && !/^(look|scene|export|cam)/.test(path)) return;
   const [o, k] = targetFor(path);
-  let v = el.type === 'checkbox' ? el.checked : el.type === 'range' ? parseFloat(el.value) : el.value;
+  let v = el.type === 'checkbox' ? el.checked : (el.type === 'range' || el.type === 'number') ? parseFloat(el.value) : el.value;
+  if (el.type === 'number' && !isFinite(v)) return;
   if (path === 'look.uniform' || path === 'look.roundUp') v = v === '1';
   o[k] = v;
   const out = document.querySelector(`[data-out="${path}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
-  if (path.startsWith('look') && !path.startsWith('look.trail')) { LC.clear(); MC.clear(); }
+  if (/^look\.(uniform|align|roundUp|assign|gap)$/.test(path)) { LC.clear(); MC.clear(); }
+  if (path.startsWith('clip.ty.')) { const c = S.clips[clipIndex(sel.id)]; c.ty = cleanType(c.ty); }
+  if (path.startsWith('look.res') || path.startsWith('look.bg')) { S.look = cleanLook(S.look); resize(); }
+  if (path.startsWith('export.')) { S.export = cleanExport(S.export); if (path === 'export.preset' && EXP_PRESETS[v] && EXP_PRESETS[v][0]) { S.export.w = EXP_PRESETS[v][0]; S.export.h = EXP_PRESETS[v][1]; } }
   rebuild();
-  if (el.tagName === 'SELECT' && (path === 'clip.mode' || path === 'trans.fo.type') || path === 'clip.enabled') renderInspector();
-});
-$('insp').addEventListener('click', e => {
+  if (el.tagName === 'SELECT' && (path === 'clip.mode' || path === 'trans.fo.type' || path === 'clip.ty.font' || path === 'clip.ty.size') || path === 'clip.enabled' || path === 'clip.ownType' || path === 'clip.ty.mono' || path === 'clip.ty.font') renderInspector();
+  if (path === 'look.pxMode' || path === 'look.res.mode' || path === 'export.preset' || path === 'export.fmt') renderSide();
+  const lo = $('expLen'); if (lo) lo.textContent = expLenText();
+}
+onPanels('click', e => {
+  const ck = e.target.closest('[data-ckey]'), rs = e.target.closest('[data-res]');
+  if (rs) { const [w, h] = rs.dataset.res.split(',').map(Number); S.look.res.w = w; S.look.res.h = h; resize(); renderSide(); scheduleSave(); return; }
+  if (ck) {
+    const p = ck.dataset.ckey, K = S.cam.k[p], on = K && K.some(k => Math.abs(k[0] - tl) < CAM_TOL);
+    if (e.altKey) { if (K) { S.cam[p] = foValue(S.cam, p, tl); delete S.cam.k[p]; } }
+    else if (on) { S.cam[p] = foValue(S.cam, p, tl); K.splice(K.findIndex(k => Math.abs(k[0] - tl) < CAM_TOL), 1); if (!K.length) delete S.cam.k[p]; }
+    else setKeyT(S.cam, p, tl, foValue(S.cam, p, tl), CAM_TOL);
+    syncCamUI(true); renderTimeline(); scheduleSave(); return;
+  }
   const kb = e.target.closest('[data-key]'), rb = e.target.closest('[data-ramp]');
   if ((kb || rb) && sel && sel.kind === 'trans') {
     const i = clipIndex(sel.id), fo = S.clips[i].trans.fo, tau = curTau(i);
@@ -1379,7 +1711,15 @@ $('insp').addEventListener('click', e => {
     if (k === undefined) return;
     playing = false; syncPlay(); tl = Math.min(s.t1 - 1e-4, s.t0 + k * (s.t1 - s.t0) + (k === 0 ? 1e-4 : 0)); updatePlayhead(); syncFoUI(true); return;
   }
+  if (b.dataset.act === 'ckprev' || b.dataset.act === 'cknext') {
+    const ks = camKeyTimes(), k = b.dataset.act === 'cknext' ? ks.find(k => k > tl + 0.004) : [...ks].reverse().find(k => k < tl - 0.004);
+    if (k === undefined) return;
+    playing = false; syncPlay(); tl = Math.min(total, k); updatePlayhead(); syncCamUI(true); return;
+  }
+  if (b.dataset.act === 'camReset') { S.cam = defCam(); renderInspector(); renderTimeline(); scheduleSave(); return; }
+  if (b.dataset.act === 'export') { if (exporting) expCancel = true; else runExport(); return; }
   const act = b.dataset.act, i = sel ? clipIndex(sel.id) : -1, c = S.clips[i];
+  if (act === 'tyAll' && c && c.ty) { S.clips.forEach(d => { if (d !== c && (d.type === 'text' || (d.type === 'cipher' && d.ownType))) d.ty = cleanType(JSON.parse(JSON.stringify(c.ty))); }); rebuild(); status('Applied to all text blocks.'); return; }
   if (act === 'del' && c) { S.clips.splice(i, 1); if (!S.clips.length) S.clips.push(makeClip('text')); sel = null; rebuild(); renderInspector(); }
   else if (act === 'dup' && c) { const d = JSON.parse(JSON.stringify(c)); d.id = newId(); S.clips.splice(i + 1, 0, d); sel = { kind: 'clip', id: d.id }; rebuild(); renderInspector(); }
   else if ((act === 'left' || act === 'right') && c) { const j = i + (act === 'left' ? -1 : 1); if (j < 0 || j >= S.clips.length) return; S.clips.splice(i, 1); S.clips.splice(j, 0, c); rebuild(); renderInspector(); }
@@ -1390,7 +1730,7 @@ $('insp').addEventListener('click', e => {
   else if (act === 'save') saveScene();
   else if (act === 'load') $('sceneFile').click();
   else if (act === 'copy') copyScene();
-  else if (act === 'reset') { S = defaultScene(); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); status('Loaded the example scene.'); }
+  else if (act === 'reset') { S = defaultScene(); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); renderSide(); resize(); status('Loaded the example scene.'); }
 });
 function status(msg) { const s = $('status'); if (s) s.textContent = msg; }
 
@@ -1469,7 +1809,7 @@ $('sceneFile').addEventListener('change', e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   const rd = new FileReader();
   rd.onload = () => {
-    try { S = normalizeScene(JSON.parse(rd.result)); sel = null; tl = 0; LC.clear(); MC.clear(); $('mode').value = S.playback; rebuild(); renderInspector(); status('Loaded ' + f.name); fitZoom(); }
+    try { S = normalizeScene(JSON.parse(rd.result)); sel = null; tl = 0; LC.clear(); MC.clear(); $('mode').value = S.playback; rebuild(); renderInspector(); renderSide(); resize(); status('Loaded ' + f.name); fitZoom(); }
     catch (err) { status('Could not load ' + f.name + ': ' + (err.message || 'invalid JSON')); }
   };
   rd.readAsText(f);
@@ -1478,9 +1818,136 @@ document.addEventListener('paste', e => {
   if (e.target.closest('textarea, input')) return;
   const txt = e.clipboardData && e.clipboardData.getData('text');
   if (!txt || txt.trim()[0] !== '{') return;
-  try { S = normalizeScene(JSON.parse(txt)); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); status('Loaded the pasted scene.'); }
+  try { S = normalizeScene(JSON.parse(txt)); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); renderSide(); resize(); status('Loaded the pasted scene.'); }
   catch (err) { status('Pasted text is not a valid scene.'); }
 });
+
+// ================= export =================
+let expCancel = false;
+function saveBlob(blob, filename) {
+  if (downloads) return downloads.save({ filename, data: blob }).then(() => 'Saved ' + filename, err => err && err.code === 'declined' ? 'Save cancelled.' : 'Saving is not available here (' + (err && err.code || 'error') + ').');
+  try {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    return Promise.resolve('Downloaded ' + filename);
+  } catch (e) { return Promise.resolve('Download blocked in this view.'); }
+}
+function zipWriter() { // stored (uncompressed) zip — PNGs are already compressed
+  const T = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; T[i] = c >>> 0; }
+  const crc = u => { let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = T[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const parts = [], cent = []; let off = 0, n = 0;
+  return {
+    async add(name, blob) {
+      const data = new Uint8Array(await blob.arrayBuffer()), nm = new TextEncoder().encode(name), c = crc(data), L = data.length;
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(12, 0x21, true); h.setUint32(14, c, true); h.setUint32(18, L, true); h.setUint32(22, L, true); h.setUint16(26, nm.length, true);
+      parts.push(h, nm, blob);
+      const d = new DataView(new ArrayBuffer(46));
+      d.setUint32(0, 0x02014b50, true); d.setUint16(4, 20, true); d.setUint16(6, 20, true); d.setUint16(14, 0x21, true); d.setUint32(16, c, true); d.setUint32(20, L, true); d.setUint32(24, L, true); d.setUint16(28, nm.length, true); d.setUint32(42, off, true);
+      cent.push(d, nm); off += 30 + nm.length + L; n++;
+    },
+    finish() {
+      let cs = 0; cent.forEach(p => cs += p.byteLength);
+      const e = new DataView(new ArrayBuffer(22));
+      e.setUint32(0, 0x06054b50, true); e.setUint16(8, n, true); e.setUint16(10, n, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+      return new Blob([...parts, ...cent, e], { type: 'application/zip' });
+    },
+  };
+}
+function loadMuxer() {
+  if (window.Mp4Muxer) return Promise.resolve(window.Mp4Muxer);
+  return new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.1/build/mp4-muxer.min.js';
+    s.onload = () => window.Mp4Muxer ? res(window.Mp4Muxer) : rej(new Error('The MP4 muxer did not load.'));
+    s.onerror = () => rej(new Error('Could not load the MP4 muxer (no network?). Export a PNG sequence instead.'));
+    document.head.appendChild(s);
+  });
+}
+async function mp4Start(w, h, fps) {
+  if (!('VideoEncoder' in window)) throw new Error('This browser has no video encoder (WebCodecs). Use Chrome, Edge or Safari, or export a PNG sequence.');
+  const M = await loadMuxer();
+  const bitrate = Math.round(Math.min(80e6, Math.max(4e6, w * h * fps * 0.12)));
+  const mbs = Math.ceil(w / 16) * Math.ceil(h / 16), lvl = mbs <= 8192 ? '28' : mbs <= 36864 ? '33' : '3c';
+  const cands = [['avc', 'avc1.6400' + lvl], ['avc', 'avc1.4d00' + lvl], ['avc', 'avc1.4200' + lvl], ['vp9', 'vp09.00.51.08'], ['vp9', 'vp09.00.41.08'], ['av1', 'av01.0.12M.08']];
+  let pick = null;
+  for (const [mc, codec] of cands) {
+    const cfg = { codec, width: w, height: h, bitrate, framerate: fps };
+    if (mc === 'avc') cfg.avc = { format: 'avc' };
+    try { const r = await VideoEncoder.isConfigSupported(cfg); if (r.supported) { pick = [mc, cfg]; break; } } catch (e) { }
+  }
+  if (!pick) throw new Error(`This browser can't encode ${w}×${h} video. Try a smaller size or a PNG sequence.`);
+  const target = new M.ArrayBufferTarget();
+  const mux = new M.Muxer({ target, video: { codec: pick[0], width: w, height: h, frameRate: fps }, fastStart: 'in-memory' });
+  const st = { err: null };
+  const enc = new VideoEncoder({ output: (chunk, meta) => mux.addVideoChunk(chunk, meta), error: e => { st.err = e; } });
+  enc.configure(pick[1]);
+  return { enc, mux, target, st, codec: pick[1].codec };
+}
+function expUI(frac, msg) {
+  const p = $('expProg'); if (p) p.style.width = (frac * 100).toFixed(1) + '%';
+  const s = $('expStatus'); if (s && msg !== undefined) s.textContent = msg;
+  const b = $('expBtn'); if (b) b.textContent = exporting ? 'Cancel' : 'Export';
+}
+async function runExport() {
+  if (exporting) return;
+  const E = S.export; let [w, h] = exportSize();
+  w = Math.max(16, Math.round(w / 2) * 2); h = Math.max(16, Math.round(h / 2) * 2);
+  const fps = E.fps, dur = expDur(), N = Math.max(1, Math.round(dur * fps)), base = fileBase();
+  let V = null, zip = null;
+  expUI(0, 'Preparing…');
+  try { if (E.fmt === 'mp4') V = await mp4Start(w, h, fps); else zip = zipWriter(); }
+  catch (err) { expUI(0, err.message || String(err)); return; }
+  exporting = true; expCancel = false; expUI(0, 'Rendering…');
+  const wasPlaying = playing, keepT = tl; playing = false; syncPlay();
+  { const r = stage.getBoundingClientRect(), s = Math.min(r.width / w, r.height / h); const cw = w * s, ch = h * s; placeCanvas(cv, (r.width - cw) / 2, (r.height - ch) / 2, cw, ch); if (FX) placeCanvas(FX.canvas, (r.width - cw) / 2, (r.height - ch) / 2, cw, ch); }
+  setRenderSize(w, h); if (FX) FX.clear();
+  const oc = document.createElement('canvas'); oc.width = w; oc.height = h; const og = oc.getContext('2d');
+  const t0 = performance.now(); let msg = '';
+  try {
+    for (let i = 0; i < N; i++) {
+      if (expCancel) throw new Error('Export cancelled.');
+      if (V && V.st.err) throw V.st.err;
+      const ft = i / fps; let tt = ft, d = 1 / fps;
+      if (S.playback === 'pingpong' && ft > total) { tt = 2 * total - ft; d = -1 / fps; }
+      tt = Math.max(0, Math.min(tt, total - 1e-6));
+      draw(tt, i ? d : 0);
+      og.fillStyle = S.look.bg; og.fillRect(0, 0, w, h);
+      if (FX && S.look.trail.on) og.drawImage(FX.canvas, 0, 0);
+      og.drawImage(cv, 0, 0);
+      if (V) {
+        const vf = new VideoFrame(oc, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });
+        V.enc.encode(vf, { keyFrame: i % Math.max(1, Math.round(fps * 2)) === 0 }); vf.close();
+        while (V.enc.encodeQueueSize > 4) await new Promise(r => setTimeout(r, 4));
+      } else {
+        const b = await new Promise(r => oc.toBlob(r, 'image/png'));
+        await zip.add(`${base}_${String(i).padStart(5, '0')}.png`, b);
+      }
+      const el = (performance.now() - t0) / 1000, eta = el / (i + 1) * (N - i - 1);
+      expUI((i + 1) / N, `Frame ${i + 1} / ${N} · ${Math.ceil(eta)}s left`);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    let blob, name;
+    if (V) { expUI(1, 'Finishing video…'); await V.enc.flush(); V.enc.close(); V.mux.finalize(); blob = new Blob([V.target.buffer], { type: 'video/mp4' }); name = base + '.mp4'; }
+    else { blob = zip.finish(); name = base + '_png.zip'; }
+    exporting = false; tl = keepT; resize(); if (FX) FX.clear();
+    expUI(1, 'Ready: ' + name + ' (' + (blob.size / 1048576).toFixed(1) + ' MB)');
+    msg = await saveBlob(blob, name);
+    window.__lastExport = { name, size: blob.size, type: blob.type, codec: V && V.codec };
+  } catch (err) {
+    msg = (err && err.message) || String(err);
+    try { if (V && V.enc.state !== 'closed') V.enc.close(); } catch (e) { }
+  } finally {
+    exporting = false; tl = keepT; resize(); if (FX) FX.clear();
+    playing = wasPlaying; syncPlay(); expUI(msg.startsWith('Export cancelled') ? 0 : 1, msg);
+  }
+}
+$('sideToggle').onclick = () => {
+  const on = $('app').classList.toggle('sidecol');
+  $('sideToggle').textContent = on ? '▸' : '◂'; $('sideToggle').setAttribute('aria-label', on ? 'Expand side panel' : 'Collapse side panel');
+  try { localStorage.setItem('pc-side', on ? '1' : '0'); } catch (e) { }
+};
+try { if (localStorage.getItem('pc-side') === '1') { $('app').classList.add('sidecol'); $('sideToggle').textContent = '▸'; } } catch (e) { }
 
 // ================= transport =================
 let drawnT = 0, dir = 1;
@@ -1513,8 +1980,7 @@ function frame(now) {
   }
   const delta = playing ? dt * dir : Math.max(-0.1, Math.min(0.1, tl - drawnT));
   drawnT = tl;
-  draw(Math.min(tl, Math.max(0, total - 1e-6)), delta);
-  syncFoUI(false);
+  if (!exporting) { draw(Math.min(tl, Math.max(0, total - 1e-6)), delta); syncFoUI(false); syncCamUI(false); }
   requestAnimationFrame(frame);
 }
 
@@ -1524,6 +1990,7 @@ $('mode').value = S.playback || 'loop';
 rebuild();
 fitZoom();
 renderInspector();
+renderSide();
 syncPlay();
 requestAnimationFrame(frame);
 </script>
