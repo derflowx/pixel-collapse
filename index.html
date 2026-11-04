@@ -213,7 +213,7 @@ function cleanFo(o) {
   f.ramp = r;
   return f;
 }
-const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, overshoot: 0, osMode: 'axis', ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o); t.overshoot = num(t.overshoot, 0, 0, 1); t.osMode = t.osMode === 'corner' ? 'corner' : 'axis'; t.fo = cleanFo(o.fo); return t; };
+const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, overshoot: 0, osMode: 'axis', ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o); t.overshoot = num(t.overshoot, 0, 0, 1); t.osMode = ['corner', 'seq'].includes(t.osMode) ? t.osMode : 'axis'; t.fo = cleanFo(o.fo); return t; };
 // Type settings for text/cipher blocks. size = glyph height in grid pixels (Unifont: multiples of 16).
 const defType = (o = {}) => Object.assign({ font: 'Unifont', size: 16, track: 0, lead: 1, align: 'center', mono: true, cellW: 0, cellH: 0, weight: '400' }, o);
 function cleanType(o) {
@@ -1112,7 +1112,7 @@ function draw(t, delta = 0) {
     else {
       const sp = tr.stagger * D, md = Math.max(0.03, D - sp), a = 0.5 + 0.5 * tr.overlap, e = EASE[tr.ease] || EASE.cubic;
       const os = tr.overshoot || 0, OP = 0.7; // overshoot: travel past the target by os × distance, then settle back
-      const corner = os > 0 && tr.osMode === 'corner', OS = 0.3;
+      const corner = os > 0 && tr.osMode !== 'axis' ? tr.osMode : '', OS = 0.3;
       const ov = os > 0 ? (x => x < OP ? (1 + os) * e(x / OP) : 1 + os - os * e((x - OP) / (1 - OP))) : e;
       const fo = tr.fo, ramp = rampLUT(fo.ramp), idf = x => x, rampW = fo.rampAxis ? idf : ramp, rampA = fo.rampAxis ? ramp : idf, plain = fo.type === 'plain', FC = new Map();
       const fieldAt = ltx => { let F = FC.get(ltx); if (!F) { F = foField(fo, m, clamp01(ltx / D)); FC.set(ltx, F); } return F; };
@@ -1129,8 +1129,9 @@ function draw(t, delta = 0) {
         else {
           let f, g;
           if (corner) { // both axes overshoot first (X+os, then Y+os), then settle back together
-            const v = Math.min(1, u / (1 - OS)), st = os * e(clamp01((u - (1 - OS)) / OS));
-            f = (1 + os) * e(rampA(clamp01(v / a))) - st; g = (1 + os) * e(rampA(clamp01((v - (1 - a)) / a))) - st;
+            const v = Math.min(1, u / (1 - OS)), w = clamp01((u - (1 - OS)) / OS);
+            const sf = corner === 'seq' ? os * e(clamp01(w / a)) : os * e(w), sg = corner === 'seq' ? os * e(clamp01((w - (1 - a)) / a)) : sf; // seq: X back, then Y back
+            f = (1 + os) * e(rampA(clamp01(v / a))) - sf; g = (1 + os) * e(rampA(clamp01((v - (1 - a)) / a))) - sg;
           } else { f = ov(rampA(clamp01(u / a))); g = ov(rampA(clamp01((u - (1 - a)) / a))); }
           const ux = m.axis[i] ? g : f, uy = m.axis[i] ? f : g;
           out[0] = m.fx[i] + (m.tx[i] - m.fx[i]) * ux; out[1] = m.fy[i] + (m.ty[i] - m.fy[i]) * uy;
@@ -1641,7 +1642,7 @@ function renderInspector() {
     h += sel_('trans.axis', 'Axis order', c.trans.axis, [['x', 'X then Y'], ['y', 'Y then X'], ['alt', 'Alternate'], ['rnd', 'Random']]);
     h += rng('trans.overlap', 'Axis overlap', c.trans.overlap, 0, 1, 0.05, '%');
     h += rng('trans.overshoot', 'Overshoot', c.trans.overshoot || 0, 0, 0.5, 0.01, '%');
-    h += sel_('trans.osMode', 'Overshoot style', c.trans.osMode || 'axis', [['axis', 'Per axis (X past & back, then Y)'], ['corner', 'Corner (X past, Y past, then both back)']]);
+    h += sel_('trans.osMode', 'Overshoot style', c.trans.osMode || 'axis', [['axis', 'Per axis (X past & back, then Y)'], ['corner', 'Corner (X past, Y past, then both back)'], ['seq', 'Stepped (X past, Y past, X back, Y back)']]);
     h += sel_('trans.ease', 'Easing', c.trans.ease, [['cubic', 'Cubic in-out'], ['quad', 'Quad in-out'], ['expo', 'Expo in-out'], ['linear', 'Linear']]);
     h += rng('trans.trail', 'Trail amount', c.trans.trail ?? 1, 0, 2, 0.05, '%');
     h += sel_('trans.match', 'Pixel matching', c.trans.match, [['auto', 'Auto'], ['letters', 'Letter by letter'], ['rows', 'By rows'], ['random', 'Random']]);
