@@ -100,7 +100,12 @@ button { background: var(--bg); color: var(--fg); border: 1px solid var(--line);
 button:hover { border-color: var(--muted); }
 button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; min-width: 7ch; }
 .hint { color: var(--muted); font-size: 10px; line-height: 1.5; }
-.kd { position: absolute; bottom: 5px; width: 7px; height: 7px; margin-left: -4px; background: var(--oil4); transform: rotate(45deg); pointer-events: none; }
+.kd { position: absolute; bottom: 5px; width: 7px; height: 7px; margin-left: -4px; background: var(--oil4); transform: rotate(45deg); cursor: ew-resize; z-index: 2; }
+.kd::before { content: ''; position: absolute; inset: -4px; }
+.kd.on { background: var(--fg); box-shadow: 0 0 0 2px var(--accent); }
+.graph { position: absolute; left: 0; border-top: 1px solid var(--line); overflow: visible; }
+.graph .gk, .graph .gh { cursor: move; }
+.graph .gleg { font-size: 10px; letter-spacing: .06em; }
 .trans .fo { position: absolute; left: 6px; top: 5px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--fg); background: var(--bg); padding: 0 3px; }
 .kv { display: flex; gap: 6px; align-items: center; }
 button.key { padding: 1px 5px; font-size: 10px; line-height: 1.2; color: var(--muted); }
@@ -146,7 +151,7 @@ button.key.on { background: var(--oil4); color: var(--bg); border-color: var(--o
       <button id="fit">Fit</button>
     </div>
     <div class="tlscroll" id="tlscroll"><div id="track"></div></div>
-    <div class="hint">Click a block to edit it · drag a block to reorder · drag its right edge to change duration · click the ruler or Camera bar to scrub · Space play/pause · Delete removes the selected block</div>
+    <div class="hint">Click a block to edit it · drag a block to reorder · drag its right edge to change duration · click the ruler or Camera bar to scrub · Space play/pause · Delete removes the selected block or keys · keys: click/shift-click, drag to move (alt = time only), drag handles to shape the curve (alt = break), double-click resets</div>
   </section>
 </div>
 <datalist id="fontList"><option value="Unifont"><option value="Press Start 2P"><option value="VT323"><option value="Silkscreen"><option value="Pixelify Sans"><option value="Tiny5"><option value="Jersey 10"><option value="Micro 5"><option value="Space Mono"><option value="IBM Plex Mono"><option value="JetBrains Mono"><option value="Inter"><option value="Courier New"><option value="Georgia"></datalist>
@@ -188,16 +193,17 @@ const newId = () => 'c' + Date.now().toString(36) + (uidN++).toString(36);
 // Falloff: per-pixel progress from a spatial field instead of the plain stagger.
 const FO_TYPES = { plain: 'Plain', linear: 'Linear', spherical: 'Spherical', box: 'Box' };
 const FO_PARAMS = { sweep: 0, soft: 0.35, angle: 45, cx: 0, cy: 0, jitter: 0 };
-const defFo = () => ({ type: 'plain', sweep: 0, soft: 0.35, angle: 45, cx: 0, cy: 0, jitter: 0, invert: false, interp: 'linear', k: { sweep: [[0, 0], [1, 1]] }, ramp: [[0, 0], [1, 1]] });
+const defFo = () => ({ type: 'plain', sweep: 0, soft: 0.35, angle: 45, cx: 0, cy: 0, jitter: 0, invert: false, rampAxis: false, interp: 'linear', k: { sweep: [[0, 0], [1, 1]] }, ramp: [[0, 0], [1, 1]] });
+function cleanKey(e, tf) { const r = [tf(+e[0]), +e[1]]; if (Array.isArray(e[2]) && e[2].length >= 4 && e[2].slice(0, 4).every(v => isFinite(v))) r.push(e[2].slice(0, 4).map(Number)); return r; }
 function cleanFo(o) {
   if (!o || typeof o !== 'object') return defFo();
   const f = Object.assign(defFo(), o);
   if (!FO_TYPES[f.type]) f.type = 'plain';
   for (const p in FO_PARAMS) f[p] = num(f[p], FO_PARAMS[p], -1e4, 1e4);
-  f.invert = !!f.invert; f.interp = f.interp === 'ease' ? 'ease' : 'linear';
+  f.invert = !!f.invert; f.rampAxis = !!f.rampAxis; f.interp = f.interp === 'ease' ? 'ease' : 'linear';
   const k = {};
   if (o.k && typeof o.k === 'object') for (const p in FO_PARAMS) if (Array.isArray(o.k[p])) {
-    const a = o.k[p].filter(e => Array.isArray(e) && isFinite(e[0]) && isFinite(e[1])).map(e => [clamp01(+e[0]), +e[1]]).sort((x, y) => x[0] - y[0]);
+    const a = o.k[p].filter(e => Array.isArray(e) && isFinite(e[0]) && isFinite(e[1])).map(e => cleanKey(e, clamp01)).sort((x, y) => x[0] - y[0]);
     if (a.length) k[p] = a;
   }
   f.k = o.k && typeof o.k === 'object' ? k : defFo().k;
@@ -227,7 +233,7 @@ function cleanCam(o) {
   for (const p in CAM_PARAMS) c[p] = num(o[p], CAM_PARAMS[p], -1e4, 1e4);
   c.interp = o.interp === 'linear' ? 'linear' : 'ease';
   if (o.k && typeof o.k === 'object') for (const p in CAM_PARAMS) if (Array.isArray(o.k[p])) {
-    const a = o.k[p].filter(e => Array.isArray(e) && isFinite(e[0]) && isFinite(e[1])).map(e => [Math.max(0, +e[0]), +e[1]]).sort((x, y) => x[0] - y[0]);
+    const a = o.k[p].filter(e => Array.isArray(e) && isFinite(e[0]) && isFinite(e[1])).map(e => cleanKey(e, t => Math.max(0, t))).sort((x, y) => x[0] - y[0]);
     if (a.length) c.k[p] = a;
   }
   return c;
@@ -740,14 +746,27 @@ function buildMovers(A, B, tr, seedKey) {
 
 // ================= falloff =================
 const smooth = s => s * s * (3 - 2 * s);
+// Keys: [time, value, handles?] — handles = [inDt, inDv, outDt, outDv] (bezier, relative to the key).
+// Keys without handles use the object's interp: linear = straight, ease = flat tangents (= smoothstep).
+function hdl(K, j, side, interp) {
+  const k = K[j], h = k[2];
+  if (side === 'o') { const n = K[j + 1], L = n[0] - k[0]; return h ? [Math.min(Math.max(h[2], 0), L), h[3]] : [L / 3, interp === 'ease' ? 0 : (n[1] - k[1]) / 3]; }
+  const n = K[j - 1], L = k[0] - n[0]; return h ? [Math.max(Math.min(h[0], 0), -L), h[1]] : [-L / 3, interp === 'ease' ? 0 : (n[1] - k[1]) / 3];
+}
+function bezSeg(K, j, t, interp) { // segment K[j-1] -> K[j]
+  const a = K[j - 1], b = K[j], L = Math.max(1e-6, b[0] - a[0]), x = t - a[0];
+  if (!a[2] && !b[2]) { const s = x / L; return a[1] + (b[1] - a[1]) * (interp === 'ease' ? smooth(s) : s); }
+  const o = hdl(K, j - 1, 'o', interp), i = hdl(K, j, 'i', interp);
+  const x1 = o[0], x2 = L + i[0], y0 = a[1], y1 = a[1] + o[1], y2 = b[1] + i[1], y3 = b[1];
+  let lo = 0, hi = 1, s = x / L;
+  for (let n = 0; n < 24; n++) { const u = 1 - s, X = 3 * u * u * s * x1 + 3 * u * s * s * x2 + s * s * s * L; if (X < x) lo = s; else hi = s; s = (lo + hi) / 2; }
+  const u = 1 - s; return u * u * u * y0 + 3 * u * u * s * y1 + 3 * u * s * s * y2 + s * s * s * y3;
+}
 function foValue(fo, p, tau) {
   const K = fo.k && fo.k[p];
   if (!K || !K.length) return fo[p];
   if (tau <= K[0][0]) return K[0][1];
-  for (let j = 1; j < K.length; j++) if (tau <= K[j][0]) {
-    const a = K[j - 1], b = K[j], s = (tau - a[0]) / Math.max(1e-6, b[0] - a[0]);
-    return a[1] + (b[1] - a[1]) * (fo.interp === 'ease' ? smooth(s) : s);
-  }
+  for (let j = 1; j < K.length; j++) if (tau <= K[j][0]) return bezSeg(K, j, tau, fo.interp);
   return K[K.length - 1][1];
 }
 // Monotone cubic (Fritsch–Carlson) through the ramp points, baked into a LUT.
@@ -1094,20 +1113,20 @@ function draw(t, delta = 0) {
       const sp = tr.stagger * D, md = Math.max(0.03, D - sp), a = 0.5 + 0.5 * tr.overlap, e = EASE[tr.ease] || EASE.cubic;
       const os = tr.overshoot || 0, OP = 0.7; // overshoot: travel past the target by os × distance, then settle back
       const ov = os > 0 ? (x => x < OP ? (1 + os) * e(x / OP) : 1 + os - os * e((x - OP) / (1 - OP))) : e;
-      const fo = tr.fo, ramp = rampLUT(fo.ramp), plain = fo.type === 'plain', FC = new Map();
+      const fo = tr.fo, ramp = rampLUT(fo.ramp), idf = x => x, rampW = fo.rampAxis ? idf : ramp, rampA = fo.rampAxis ? ramp : idf, plain = fo.type === 'plain', FC = new Map();
       const fieldAt = ltx => { let F = FC.get(ltx); if (!F) { F = foField(fo, m, clamp01(ltx / D)); FC.set(ltx, F); } return F; };
       const pos = (i, ltx, out) => {
         let u;
-        if (plain) { u = (ltx - m.rank[i] * sp) / md; if (u > 0 && u < 1) u = ramp(u); }
+        if (plain) { u = (ltx - m.rank[i] * sp) / md; if (u > 0 && u < 1) u = rampW(u); }
         else {
           const F = fieldAt(ltx), dn = foDist(F, m.qx[i], m.qy[i]) + F.j * (m.jit[i] - 0.5);
           u = (F.A - dn) * F.invSoft;
-          u = u <= 0 ? 0 : u >= 1 ? 1 : ramp(u);
+          u = u <= 0 ? 0 : u >= 1 ? 1 : rampW(u);
         }
         if (u <= 0) { out[0] = m.fx[i]; out[1] = m.fy[i]; }
         else if (u >= 1) { out[0] = m.tx[i]; out[1] = m.ty[i]; }
         else {
-          const f = ov(clamp01(u / a)), g = ov(clamp01((u - (1 - a)) / a));
+          const f = ov(rampA(clamp01(u / a))), g = ov(rampA(clamp01((u - (1 - a)) / a)));
           const ux = m.axis[i] ? g : f, uy = m.axis[i] ? f : g;
           out[0] = m.fx[i] + (m.tx[i] - m.fx[i]) * ux; out[1] = m.fy[i] + (m.ty[i] - m.fy[i]) * uy;
         }
@@ -1274,7 +1293,7 @@ function renderTimeline() {
     if (it.kind === 'clip') h += `<div class="blk clip${isSelClip ? ' sel' : ''}" data-k="clip" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="${esc(TYPES[c.type])}: ${esc(snippet(it.i))}"><div class="bt">${esc(TYPES[c.type])}</div><div class="bs">${esc(snippet(it.i))}</div><div class="bd">${c.hold.toFixed(1)}s</div><div class="grip" data-grip="hold"></div></div>`;
     else if (it.kind === 'off') h += `<div class="blk off${isSelClip ? ' sel' : ''}" data-k="off" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="${esc(TYPES[c.type])} (off)"><div class="bt">${esc(TYPES[c.type])} off</div></div>`;
     else {
-      const fo = c.trans.fo, kd = fo.type === 'plain' ? '' : foKeyTimes(fo).map(k => `<i class="kd" style="left:calc(${(k * 100).toFixed(2)}% + ${(5 - 10 * k).toFixed(1)}px)"></i>`).join('');
+      const fo = c.trans.fo, kd = fo.type === 'plain' ? '' : foKeyTimes(fo).map(k => `<i class="kd${kdOn(c.id, fo, k, 0.006) ? ' on' : ''}" data-kt="${k}" data-ko="${c.id}" style="left:calc(${(k * 100).toFixed(2)}% + ${(5 - 10 * k).toFixed(1)}px)" title="Key at ${(k * 100).toFixed(0)}% — click to select, drag to move, Delete to remove"></i>`).join('');
       h += `<div class="blk trans${isSelTr ? ' sel' : ''}" data-k="trans" data-i="${it.i}" style="left:${it.x0}px;width:${w}px" title="Transition ${c.trans.dur.toFixed(1)}s · ${FO_TYPES[fo.type]} falloff">${fo.type !== 'plain' && w > 40 ? `<span class="fo">${FO_TYPES[fo.type]}</span>` : ''}${kd}<div class="bd">${c.trans.dur.toFixed(1)}s</div><div class="grip" data-grip="dur"></div></div>`;
     }
   }
@@ -1284,11 +1303,14 @@ function renderTimeline() {
     const isSel = sel && sel.kind === 'trail';
     h += `<div class="adj${T.on ? '' : ' off'}${isSel ? ' sel' : ''}" data-k="trail" style="left:${ax0}px;width:${Math.max(18, ax1 - ax0)}px" title="Trail adjustment layer">${T.on ? 'Trail · ' + esc({ iridescent: 'Oil slick', pearl: 'Pearl', spectral: 'Spectral', aurora: 'Aurora' }[T.palette] || '') : 'Trail off'}<div class="grip l" data-grip="tstart"></div><div class="grip" data-grip="tend"></div></div>`; }
   { const endX = (items.filter(it => it.t1 > it.t0).pop() || { x1: 0 }).x1, isSel = sel && sel.kind === 'cam';
-    const kd = camKeyTimes().map(k => `<i class="kd" style="left:${Math.max(4, Math.min(endX - 4, k >= total ? endX : tToX(k)))}px"></i>`).join('');
+    const kd = camKeyTimes().map(k => `<i class="kd${kdOn('cam', S.cam, k, CAM_TOL) ? ' on' : ''}" data-kt="${k}" data-ko="cam" style="left:${Math.max(4, Math.min(endX - 4, k >= total ? endX : tToX(k)))}px" title="Key at ${k.toFixed(2)}s — click to select, drag to move, Delete to remove"></i>`).join('');
     h += `<div class="cambar${isSel ? ' sel' : ''}" data-k="cam" style="left:0;width:${Math.max(40, endX)}px" title="Camera (click to edit, click again to move the playhead)">Camera${kd}</div>`; }
+  const g = graphSVG(width);
+  h += g.svg;
   h += `<div class="phead" id="phead"></div><div class="drop" id="drop" hidden></div>`;
   track.innerHTML = h;
   track.style.width = width + 'px';
+  track.style.height = g.svg ? (GTOP + GH + 6) + 'px' : '';
   updatePlayhead();
 }
 function updatePlayhead() {
@@ -1301,6 +1323,31 @@ track.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
   const r = track.getBoundingClientRect(), x = e.clientX - r.left;
   const grip = e.target.closest('.grip'), blk = e.target.closest('.blk'), adj = e.target.closest('.adj');
+  const kd = e.target.closest('.kd'), gk = e.target.closest('[data-gk]'), gh = e.target.closest('[data-gh]'), gbg = e.target.closest('.graph');
+  if (kd) {
+    track.setPointerCapture(e.pointerId);
+    const own = kd.dataset.ko, t = +kd.dataset.kt, o = ownObj(own); if (!o) return;
+    if (keyOwner() !== own) { if (own === 'cam') { sel = { kind: 'cam', id: 'cam' }; renderInspector(); } else select('trans', own, false); }
+    const at = keysAt(o, t, own === 'cam' ? CAM_TOL : 0.006), all = at.every(k => kSel.keys.includes(k));
+    if (e.shiftKey) kSel.keys = all ? kSel.keys.filter(k => !at.includes(k)) : kSel.keys.concat(at.filter(k => !kSel.keys.includes(k)));
+    else if (!all) kSel.keys = at;
+    kSel.own = own;
+    startKeyDrag(e, x, false); renderTimeline(); return;
+  }
+  if (gh) {
+    track.setPointerCapture(e.pointerId);
+    const own = keyOwner(), o = ownObj(own), p = gh.dataset.p, K = o.k[p], j = +gh.dataset.j;
+    drag = { mode: 'ghandle', own, p, key: K[j], side: gh.dataset.gh, ranges: graphRanges(own, o) };
+    return;
+  }
+  if (gk) {
+    track.setPointerCapture(e.pointerId);
+    const own = keyOwner(), o = ownObj(own), k = o.k[gk.dataset.p][+gk.dataset.j];
+    if (e.shiftKey) kSel.keys = kSel.keys.includes(k) ? kSel.keys.filter(q => q !== k) : kSel.keys.concat([k]);
+    else if (!kSel.keys.includes(k)) kSel.keys = [k];
+    startKeyDrag(e, x, true); renderTimeline(); return;
+  }
+  if (gbg) { track.setPointerCapture(e.pointerId); if (kSel.keys.length) { kSel.keys = []; renderTimeline(); } drag = { mode: 'scrub' }; scrubTo(x); return; }
   if (e.target.closest('.cambar')) {
     track.setPointerCapture(e.pointerId);
     if (sel?.kind !== 'cam') { sel = { kind: 'cam', id: 'cam' }; renderInspector(); renderTimeline(); }
@@ -1343,6 +1390,8 @@ track.addEventListener('pointermove', e => {
     const d = $('drop'); d.hidden = false;
     d.style.left = (idx < cl.length ? cl[idx].x0 : (cl.length ? items[items.length - 1].x1 : 0)) - 1 + 'px';
   } else if (drag.mode === 'scrub') scrubTo(x);
+  else if (drag.mode === 'keys' || drag.mode === 'press-keys') moveKeys(e, x);
+  else if (drag.mode === 'ghandle') moveHandle(e, x);
   else if (drag.mode === 'trailEdge' || drag.mode === 'trailPress' || drag.mode === 'trailMove') {
     const T = S.look.trail, tx = Math.round(xToT(x) * 10) / 10;
     if (drag.mode === 'trailEdge') {
@@ -1368,10 +1417,121 @@ const endDrag = () => {
     sel = { kind: 'clip', id: c.id };
     rebuild(); renderInspector();
   } else if (drag.mode === 'resize') renderTimeline();
+  else if (drag.mode === 'keys' || drag.mode === 'ghandle') { drag = null; afterKeyEdit(); }
   drag = null;
 };
 track.addEventListener('pointerup', endDrag);
+track.addEventListener('dblclick', e => {
+  const gk = e.target.closest('[data-gk]'); if (!gk) return;
+  const o = ownObj(keyOwner()); if (!o) return; const k = o.k[gk.dataset.p][+gk.dataset.j]; if (k) { k.length = 2; afterKeyEdit(); }
+});
 track.addEventListener('pointercancel', endDrag);
+// ---- keyframe editor: selectable diamonds + graph with bezier handles ----
+let kSel = { own: null, keys: [] };
+const GTOP = 150, GH = 150, GPAD = 16;
+const GCOL = ['#7fd4ff', '#ff8fb8', '#f2dc8c', '#9df29a', '#c6a4ff', '#ffb36b', '#7ff2de'];
+function keyOwner() { return !sel ? null : sel.kind === 'cam' ? 'cam' : sel.kind === 'trans' ? sel.id : null; }
+function ownObj(own) { if (own === 'cam') return S.cam; if (!own) return null; const i = clipIndex(own); return i >= 0 ? S.clips[i].trans.fo : null; }
+function ownParams(own) { return own === 'cam' ? CAM_PARAMS : FO_PARAMS; }
+function keysAt(o, t, tol) { const r = []; for (const p in o.k) o.k[p].forEach(k => { if (Math.abs(k[0] - t) < tol) r.push(k); }); return r; }
+function keyParam(o, k) { for (const p in o.k) if (o.k[p].includes(k)) return p; return null; }
+function kdOn(own, o, t, tol) { return kSel.own === own && kSel.keys.length > 0 && keysAt(o, t, tol).some(k => kSel.keys.includes(k)); }
+function keyMap(own) {
+  if (own === 'cam') return { tx: t => tToX(Math.min(t, total)), xt: x => xToT(x), lo: 0, hi: Math.max(total, 0) };
+  const i = clipIndex(own), it = items.find(it => it.kind === 'trans' && it.i === i);
+  if (!it) return null; const w = Math.max(1, it.x1 - it.x0);
+  return { tx: t => it.x0 + t * w, xt: x => (x - it.x0) / w, lo: 0, hi: 1, x0: it.x0, x1: it.x1 };
+}
+function graphParams(own, o) { return Object.keys(ownParams(own)).filter(p => o.k[p] && o.k[p].length && (own === 'cam' || p !== 'sweep' || o.type !== 'plain')); }
+function graphRanges(own, o) {
+  const R = {};
+  for (const p of graphParams(own, o)) {
+    const K = o.k[p]; let mn = Infinity, mx = -Infinity;
+    K.forEach((k, j) => { mn = Math.min(mn, k[1]); mx = Math.max(mx, k[1]);
+      if (j > 0) { const h = hdl(K, j, 'i', o.interp); mn = Math.min(mn, k[1] + h[1]); mx = Math.max(mx, k[1] + h[1]); }
+      if (j < K.length - 1) { const h = hdl(K, j, 'o', o.interp); mn = Math.min(mn, k[1] + h[1]); mx = Math.max(mx, k[1] + h[1]); } });
+    if (mx - mn < 1e-6) { const d = Math.max(Math.abs(mx) * 0.2, 0.1); mn -= d; mx += d; }
+    const pad = (mx - mn) * 0.08; R[p] = [mn - pad, mx + pad];
+  }
+  return R;
+}
+function graphSVG(width) {
+  const own = keyOwner(), o = ownObj(own);
+  if (!o || (own !== 'cam' && o.type === 'plain')) return { svg: '' };
+  const M = keyMap(own); if (!M) return { svg: '' };
+  if (kSel.own !== own) kSel = { own, keys: [] };
+  const ps = graphParams(own, o), R = drag && drag.ranges ? drag.ranges : graphRanges(own, o);
+  const all = new Set(); ps.forEach(p => o.k[p].forEach(k => all.add(k))); kSel.keys = kSel.keys.filter(k => all.has(k));
+  const yv = (p, v) => { const r = R[p] || [0, 1]; return GPAD + (1 - (v - r[0]) / (r[1] - r[0])) * (GH - 2 * GPAD); };
+  let h = `<svg class="graph" style="top:${GTOP}px;width:${width}px;height:${GH}px" width="${width}" height="${GH}">`;
+  h += `<rect x="0" y="0" width="${width}" height="${GH}" fill="transparent"/>`;
+  if (M.x0 !== undefined) h += `<rect x="${M.x0}" y="0" width="${M.x1 - M.x0}" height="${GH}" fill="rgba(255,255,255,.025)"/>`;
+  if (!ps.length) h += `<text x="10" y="${GH / 2}" fill="var(--muted)" class="gleg">No keyframes yet — set one with ◆ in the inspector.</text>`;
+  let leg = 10;
+  ps.forEach((p, n) => {
+    const col = GCOL[n % GCOL.length], K = o.k[p], x0 = M.tx(K[0][0]), xe = M.tx(K[K.length - 1][0]);
+    let d = `M${Math.min(x0, M.tx(M.lo)).toFixed(1)},${yv(p, K[0][1]).toFixed(1)} L${x0.toFixed(1)},${yv(p, K[0][1]).toFixed(1)}`;
+    for (let x = x0; x <= xe; x += 3) d += ` L${x.toFixed(1)},${yv(p, foValue(o, p, M.xt(x))).toFixed(1)}`;
+    d += ` L${xe.toFixed(1)},${yv(p, K[K.length - 1][1]).toFixed(1)} L${Math.max(xe, M.tx(M.hi)).toFixed(1)},${yv(p, K[K.length - 1][1]).toFixed(1)}`;
+    h += `<path d="${d}" fill="none" stroke="${col}" stroke-width="1.5" opacity=".9"/>`;
+    K.forEach((k, j) => {
+      const kx = M.tx(k[0]), ky = yv(p, k[1]), on = kSel.keys.includes(k);
+      if (on) for (const side of ['i', 'o']) {
+        if ((side === 'i' && j === 0) || (side === 'o' && j === K.length - 1)) continue;
+        const hh = hdl(K, j, side, o.interp), hx = M.tx(k[0] + hh[0]), hy = yv(p, k[1] + hh[1]);
+        h += `<line x1="${kx}" y1="${ky}" x2="${hx}" y2="${hy}" stroke="${col}" stroke-width="1" opacity=".7"/><circle class="gh" data-gh="${side}" data-p="${p}" data-j="${j}" cx="${hx}" cy="${hy}" r="4" fill="var(--bg)" stroke="${col}" stroke-width="1.5"/>`;
+      }
+      h += `<rect class="gk" data-gk="1" data-p="${p}" data-j="${j}" x="${kx - 4.5}" y="${ky - 4.5}" width="9" height="9" transform="rotate(45 ${kx} ${ky})" fill="${on ? '#fff' : col}" stroke="${on ? col : 'none'}" stroke-width="2"><title>${p} = ${(+k[1]).toFixed(3)} @ ${own === 'cam' ? k[0].toFixed(2) + 's' : (k[0] * 100).toFixed(1) + '%'} · double-click resets handles</title></rect>`;
+    });
+    const lbl = p + (kSel.keys.length === 1 && K.includes(kSel.keys[0]) ? ` ${(+kSel.keys[0][1]).toFixed(3)} @ ${own === 'cam' ? kSel.keys[0][0].toFixed(2) + 's' : (kSel.keys[0][0] * 100).toFixed(1) + '%'}` : '');
+    h += `<text class="gleg" x="${leg}" y="12" fill="${col}">${lbl}</text>`; leg += lbl.length * 6.2 + 14;
+  });
+  return { svg: h + `</svg>` };
+}
+function startKeyDrag(e, x, graph) {
+  const own = kSel.own, o = ownObj(own), M = keyMap(own);
+  drag = { mode: 'press-keys', own, graph, x0: x, y0: e.clientY, cx: e.clientX, M, t0x: M.xt(x), ranges: graphRanges(own, o),
+    orig: kSel.keys.map(k => [k, k[0], k[1], keyParam(o, k)]) };
+}
+function moveKeys(e, x) {
+  if (drag.mode === 'press-keys') { if (Math.abs(e.clientX - drag.cx) < 3 && Math.abs(e.clientY - drag.y0) < 3) return; drag.mode = 'keys'; }
+  const o = ownObj(drag.own), M = drag.M, dt = M.xt(x) - drag.t0x, dy = e.clientY - drag.y0;
+  const lo = Math.min(...drag.orig.map(q => q[1])), hi = Math.max(...drag.orig.map(q => q[1]));
+  const d = Math.max(M.lo - lo, Math.min(M.hi - hi, dt));
+  for (const [k, t, v, p] of drag.orig) {
+    k[0] = Math.round((t + d) * 1000) / 1000;
+    if (drag.graph && !e.altKey) { const r = drag.ranges[p]; if (r) k[1] = v - dy / (GH - 2 * GPAD) * (r[1] - r[0]); }
+  }
+  for (const p in o.k) o.k[p].sort((a, b) => a[0] - b[0]);
+  liveKeyEdit();
+}
+function moveHandle(e, x) {
+  const o = ownObj(drag.own), K = o.k[drag.p], j = K.indexOf(drag.key); if (j < 0) return;
+  const M = keyMap(drag.own), r = drag.ranges[drag.p], k = drag.key;
+  if (!k[2]) { const hi = j > 0 ? hdl(K, j, 'i', o.interp) : [0, 0], ho = j < K.length - 1 ? hdl(K, j, 'o', o.interp) : [0, 0]; k[2] = [hi[0], hi[1], ho[0], ho[1]]; }
+  // neighbours of handle-less keys keep their look: freeze them too
+  [j - 1, j + 1].forEach(n => { const q = K[n]; if (q && !q[2]) { const a = n > 0 ? hdl(K, n, 'i', o.interp) : [0, 0], b = n < K.length - 1 ? hdl(K, n, 'o', o.interp) : [0, 0]; q[2] = [a[0], a[1], b[0], b[1]]; } });
+  const r0 = r || [0, 1], gy = e.clientY - track.getBoundingClientRect().top - GTOP;
+  const v = r0[0] + (1 - (gy - GPAD) / (GH - 2 * GPAD)) * (r0[1] - r0[0]);
+  let dt = M.xt(x) - k[0], dv = v - k[1];
+  if (drag.side === 'o') { dt = Math.max(0, dt); k[2][2] = dt; k[2][3] = dv; } else { dt = Math.min(0, dt); k[2][0] = dt; k[2][1] = dv; }
+  if (!e.altKey) { // keep the tangent continuous: mirror the slope onto the other handle
+    const sl = Math.abs(dt) < 1e-9 ? 0 : dv / dt;
+    if (drag.side === 'o') k[2][1] = sl * k[2][0]; else k[2][3] = sl * k[2][2];
+  }
+  liveKeyEdit();
+}
+function liveKeyEdit() { renderTimeline(); syncFoUI(true); syncCamUI(true); }
+function afterKeyEdit() { renderTimeline(); renderInspector(); scheduleSave(); }
+function deleteSelKeys() {
+  const o = ownObj(kSel.own); if (!o) return;
+  for (const p in o.k) {
+    const K = o.k[p], last = K[K.length - 1][1];
+    o.k[p] = K.filter(k => !kSel.keys.includes(k));
+    if (!o.k[p].length) { delete o.k[p]; o[p] = last; }
+  }
+  kSel.keys = []; afterKeyEdit();
+}
 function scrubTo(x) { playing = false; tl = Math.max(0, Math.min(total, xToT(x))); syncPlay(); updatePlayhead(); }
 
 function select(kind, id, seek) {
@@ -1471,6 +1631,7 @@ function renderInspector() {
     }
     h += `<div class="label" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Remap ramp</div><canvas class="ramp" id="ramp" aria-label="Falloff remap curve"></canvas>`;
     h += `<div class="btns">${[['linear', 'Linear'], ['smooth', 'Smooth'], ['in', 'Ease in'], ['out', 'Ease out'], ['hard', 'Hard']].map(([k, v]) => `<button data-ramp="${k}">${v}</button>`).join('')}</div>`;
+    h += sel_('trans.fo.rampAxis', 'Ramp applies to', fo.rampAxis ? '1' : '0', [['0', 'Whole move'], ['1', 'Each axis (X, then Y)']]);
     h += `<div class="hint">Maps falloff → progress per pixel. Click to add a point, drag to move, double-click to remove.</div>`;
     h += sel_('trans.axis', 'Axis order', c.trans.axis, [['x', 'X then Y'], ['y', 'Y then X'], ['alt', 'Alternate'], ['rnd', 'Random']]);
     h += rng('trans.overlap', 'Axis overlap', c.trans.overlap, 0, 1, 0.05, '%');
@@ -1707,7 +1868,7 @@ function applyPath(el) {
   const [o, k] = targetFor(path);
   let v = el.type === 'checkbox' ? el.checked : (el.type === 'range' || el.type === 'number') ? parseFloat(el.value) : el.value;
   if (el.type === 'number' && !isFinite(v)) return;
-  if (path === 'clip.sq.uniform' || path === 'clip.sq.roundUp') v = v === '1';
+  if (path === 'clip.sq.uniform' || path === 'clip.sq.roundUp' || path === 'trans.fo.rampAxis') v = v === '1';
   o[k] = v;
   const out = document.querySelector(`[data-out="${path}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
   if (path.startsWith('clip.ty.')) { const c = S.clips[clipIndex(sel.id)]; c.ty = cleanType(c.ty); }
@@ -2000,6 +2161,8 @@ $('fit').onclick = fitZoom;
 window.addEventListener('keydown', e => {
   if (e.target.closest('textarea, input, select')) return;
   if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && kSel.keys.length && kSel.own === keyOwner()) { e.preventDefault(); deleteSelKeys(); }
+  else if (e.key === 'Escape' && kSel.keys.length) { kSel.keys = []; renderTimeline(); }
   else if ((e.key === 'Delete' || e.key === 'Backspace') && sel && sel.kind === 'clip') { e.preventDefault(); const b = document.createElement('button'); b.dataset.act = 'del'; $('insp').appendChild(b); b.click(); b.remove(); }
 });
 function frame(now) {
