@@ -104,6 +104,7 @@ button.primary { background: var(--accent); color: var(--bg); border-color: var(
 .kd::before { content: ''; position: absolute; inset: -4px; }
 .kd.on { background: var(--fg); box-shadow: 0 0 0 2px var(--accent); }
 .graph { position: absolute; left: 0; border-top: 1px solid var(--line); overflow: visible; }
+.alane { position: absolute; left: 0; border: 1px solid var(--line); background: var(--panel); box-sizing: border-box; cursor: text; }
 .graph .gk, .graph .gh { cursor: move; }
 .graph .gleg { font-size: 10px; letter-spacing: .06em; }
 .trans .fo { position: absolute; left: 6px; top: 5px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--fg); background: var(--bg); padding: 0 3px; }
@@ -115,6 +116,28 @@ button.key.on { background: var(--oil4); color: var(--bg); border-color: var(--o
 .keynav { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 10px; }
 .keynav output { margin-left: auto; font-variant-numeric: tabular-nums; }
 .status { color: var(--fg); font-size: 11px; min-height: 1.4em; }
+.group > .label { cursor: pointer; user-select: none; }
+.group > .label::after { content: '▾'; }
+.group.collapsed > .label::after { content: '▸'; }
+.group.collapsed > :not(.label) { display: none !important; }
+button:disabled { opacity: .35; cursor: default; }
+button.on { border-color: var(--accent); color: var(--accent); }
+.loopR { position: absolute; top: 0; height: 20px; background: rgba(120,170,255,.16); border-left: 1px solid var(--accent); border-right: 1px solid var(--accent); pointer-events: none; }
+.help { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.help[hidden] { display: none; }
+.helpbox { background: var(--panel); border: 1px solid var(--line); padding: 18px; max-width: 520px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.hgrid { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12px; }
+.hgrid b { font-weight: 600; white-space: nowrap; }
+.hgrid span { color: var(--muted); }
+.presetrow { display: flex; gap: 6px; align-items: center; }
+.presetrow select { flex: 1; max-width: none; }
+.modcard { border: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.modcard.off { opacity: .55; }
+.modhead { display: flex; align-items: center; gap: 8px; }
+.modhead meter { flex: 1; height: 8px; }
+.modhead button { padding: 1px 6px; }
+.stage.live .hud { display: none; }
+.stage:fullscreen { background: #000; }
 @media (max-width: 760px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 46vh auto auto; height: auto; min-height: 100%; }
   .tlwrap { grid-row: 2; }
@@ -136,6 +159,7 @@ button.key.on { background: var(--oil4); color: var(--bg); border-color: var(--o
     <div class="tlbar">
       <button class="primary" id="play">Pause</button>
       <button id="restart">Restart</button>
+      <button id="loopSel" title="Loop the selected block or transition (L)">Loop sel.</button>
       <span class="time" id="tout">0.00 / 0.00s</span>
       <select id="mode" aria-label="Playback"><option value="loop">Loop</option><option value="pingpong">Ping-pong</option><option value="once">Once</option></select>
       <span class="sep"></span>
@@ -145,17 +169,30 @@ button.key.on { background: var(--oil4); color: var(--bg); border-color: var(--o
       <button data-add="image">Image</button>
       <button data-add="squares">Squares</button>
       <button data-add="bigsquare">Big square</button>
+      <button data-add="shape">Shape</button>
       <span class="sep"></span>
       <label class="check" for="zoom">Zoom</label>
       <input type="range" id="zoom" min="20" max="300" value="80" style="width:110px;accent-color:var(--accent)">
       <button id="fit">Fit</button>
+      <span class="sep"></span>
+      <button id="undo" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo">↶</button>
+      <button id="redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo">↷</button>
+      <button id="liveBtn" title="Live / fullscreen view (F)">Live</button>
+      <button id="helpBtn" title="Keyboard shortcuts (?)">?</button>
     </div>
     <div class="tlscroll" id="tlscroll"><div id="track"></div></div>
     <div class="hint">Click a block to edit it · drag a block to reorder · drag its right edge to change duration · click the ruler or Camera bar to scrub · Space play/pause · Delete removes the selected block or keys · keys: click/shift-click, drag to move (alt = time only), drag handles to shape the curve (alt = break), double-click resets</div>
   </section>
 </div>
 <datalist id="fontList"><option value="Unifont"><option value="Press Start 2P"><option value="VT323"><option value="Silkscreen"><option value="Pixelify Sans"><option value="Tiny5"><option value="Jersey 10"><option value="Micro 5"><option value="Space Mono"><option value="IBM Plex Mono"><option value="JetBrains Mono"><option value="Inter"><option value="Courier New"><option value="Georgia"></datalist>
+<div class="help" id="help" hidden><div class="helpbox"><h1>Shortcuts</h1>
+<div class="hgrid"><b>Space</b><span>Play / pause</span><b>← / →</b><span>Step one frame (Shift = 1 s)</span><b>Home / End</b><span>Jump to start / end</span>
+<b>[ / ]</b><span>Previous / next block</span><b>L</b><span>Loop the selected block or transition</span><b>Ctrl+Z / Ctrl+Shift+Z</b><span>Undo / redo</span>
+<b>Ctrl+C / Ctrl+V</b><span>Copy / paste a block or transition settings</span><b>Ctrl+D</b><span>Duplicate block</span><b>Delete</b><span>Delete block or selected keys</span>
+<b>Double-click slider</b><span>Reset to default</span><b>F</b><span>Live / fullscreen view</span><b>Esc</b><span>Deselect · close</span></div>
+<div class="btns"><button id="helpClose">Close</button></div></div></div>
 <input type="file" id="imgFile" accept="image/*" hidden>
+<input type="file" id="audioFile" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" hidden>
 <input type="file" id="sceneFile" accept=".json,application/json" hidden>
 
 <script>
@@ -187,7 +224,9 @@ const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
 const num = (v, d, lo, hi) => { v = parseFloat(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
 
 // ================= scene model =================
-const TYPES = { text: 'Text', cipher: 'Cipher', image: 'Image', squares: 'Squares', bigsquare: 'Big square' };
+const TYPES = { text: 'Text', cipher: 'Cipher', image: 'Image', shape: 'Shape', squares: 'Squares', bigsquare: 'Big square' };
+const SHAPES = { circle: 'Circle', ring: 'Ring', square: 'Square', frame: 'Square frame', triangle: 'Triangle', diamond: 'Diamond', star: 'Star', heart: 'Heart', cross: 'Cross', hexagon: 'Hexagon', arrow: 'Arrow', bolt: 'Lightning' };
+const defShape = (o = {}) => Object.assign({ kind: 'circle', size: 28, thick: 4, rot: 0 }, o);
 let uidN = 0;
 const newId = () => 'c' + Date.now().toString(36) + (uidN++).toString(36);
 // Falloff: per-pixel progress from a spatial field instead of the plain stagger.
@@ -213,7 +252,10 @@ function cleanFo(o) {
   f.ramp = r;
   return f;
 }
-const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, overshoot: 0, osMode: 'axis', ease: 'cubic', match: 'auto', seed: 1, trail: 1 }, o); t.overshoot = num(t.overshoot, 0, 0, 1); t.osMode = ['corner', 'seq'].includes(t.osMode) ? t.osMode : 'axis'; t.fo = cleanFo(o.fo); return t; };
+const defTrans = (o = {}) => { const t = Object.assign({ dur: 1.6, stagger: 0.55, cascade: 0.3, order: 'rnd', axis: 'x', overlap: 0, overshoot: 0, osMode: 'axis', ease: 'cubic', match: 'auto', seed: 1, trail: 1, path: 'axis', bend: 0.5, turns: 0.5, drive: 'time', beatStep: 0.1, stepLen: 0.5, stepEase: 'snap', band: 'all' }, o); t.overshoot = num(t.overshoot, 0, 0, 1);
+  t.path = ['direct', 'arc', 'spiral'].includes(t.path) ? t.path : 'axis'; t.bend = num(t.bend, 0.5, -2, 2); t.turns = num(t.turns, 0.5, -3, 3);
+  t.drive = ['beats', 'level'].includes(t.drive) ? t.drive : 'time'; t.beatStep = num(t.beatStep, 0.1, 0.01, 1); t.stepLen = num(t.stepLen, 0.5, 0.02, 1);
+  t.stepEase = ['snap', 'smooth', 'linear'].includes(t.stepEase) ? t.stepEase : 'snap'; t.band = ['all', 'low', 'mid', 'high'].includes(t.band) ? t.band : 'all'; t.osMode = ['corner', 'seq'].includes(t.osMode) ? t.osMode : 'axis'; t.fo = cleanFo(o.fo); return t; };
 // Type settings for text/cipher blocks. size = glyph height in grid pixels (Unifont: multiples of 16).
 const defType = (o = {}) => Object.assign({ font: 'Unifont', size: 16, track: 0, lead: 1, align: 'center', mono: true, cellW: 0, cellH: 0, weight: '400' }, o);
 function cleanType(o) {
@@ -238,22 +280,49 @@ function cleanCam(o) {
   }
   return c;
 }
-const defExport = () => ({ fmt: 'mp4', fps: 30, preset: 'fhd', w: 1920, h: 1080 });
+// Audio: the track itself lives in IndexedDB (too big for the scene); the scene keeps how it's used.
+const defAudio = () => ({ name: '', offset: 0, gain: 0.9, mute: false, beats: 'detected', bpm: 120, beatOffset: 0, sens: 0.5 });
+function cleanAudio(o) {
+  const a = Object.assign(defAudio(), o && typeof o === 'object' ? o : {});
+  a.name = String(a.name || '').slice(0, 120); a.offset = num(a.offset, 0, -600, 600); a.gain = num(a.gain, 0.9, 0, 2); a.mute = !!a.mute;
+  a.beats = ['detected', 'grid', 'off'].includes(a.beats) ? a.beats : 'detected'; a.bpm = num(a.bpm, 120, 30, 300); a.beatOffset = num(a.beatOffset, 0, -600, 600); a.sens = num(a.sens, 0.5, 0, 1);
+  return a;
+}
+// Modulators: a source signal (LFO, noise, audio band, beat, mic, transition progress) added onto a target.
+const MOD_TARGETS = {
+  'cam.zoom': ['Camera zoom', 2, 'x'], 'cam.x': ['Camera X', 1, 'f2'], 'cam.y': ['Camera Y', 1, 'f2'], 'cam.roll': ['Camera roll', 180, 'deg'],
+  'cam.tiltX': ['Camera tilt', 60, 'deg'], 'cam.tiltY': ['Camera pan angle', 60, 'deg'], 'cam.fov': ['Field of view', 60, 'deg'],
+  'look.scale': ['Overall size', 1, '%'], 'px.size': ['Pixel size', 1.5, '%'], 'fx.hue': ['Hue shift', 180, 'deg'], 'fx.glow': ['Glow', 2, '%'],
+  'fx.jitter': ['Pixel jitter', 3, 'f2'], 'fx.wave': ['Wave', 6, 'f2'], 'trail.intensity': ['Trail density', 2, '%'], 'trail.width': ['Trail width', 2, 'x'],
+  'trans.overshoot': ['Overshoot (all)', 0.5, '%'], 'fx.crt': ['Scanlines', 1, '%'],
+};
+const MOD_SRC = { lfo: 'LFO', noise: 'Smooth noise', audio: 'Audio level', beat: 'Beat pulse', mic: 'Microphone level', micbeat: 'Microphone beat', progress: 'Transition progress', inflight: 'In-flight (0→1→0)' };
+const defMod = () => ({ id: newId(), on: true, src: 'lfo', target: 'cam.zoom', amount: 0.2, shape: 'sine', rate: 0.5, sync: false, band: 'all', decay: 0.25, smooth: 0.05, bipolar: true });
+function cleanMods(a) {
+  if (!Array.isArray(a)) return [];
+  return a.slice(0, 32).map(o => { const m = Object.assign(defMod(), o && typeof o === 'object' ? o : {});
+    if (!MOD_SRC[m.src]) m.src = 'lfo'; if (!MOD_TARGETS[m.target]) m.target = 'cam.zoom'; m.on = m.on !== false; m.amount = num(m.amount, 0.2, -1000, 1000);
+    m.shape = ['sine', 'tri', 'square', 'saw', 'ramp'].includes(m.shape) ? m.shape : 'sine'; m.rate = num(m.rate, 0.5, 0.01, 32); m.sync = !!m.sync;
+    m.band = ['all', 'low', 'mid', 'high'].includes(m.band) ? m.band : 'all'; m.decay = num(m.decay, 0.25, 0.02, 4); m.smooth = num(m.smooth, 0.05, 0, 2); m.bipolar = m.bipolar !== false;
+    if (typeof m.id !== 'string') m.id = newId(); return m; });
+}
+const defExport = () => ({ fmt: 'mp4', fps: 30, preset: 'fhd', w: 1920, h: 1080, alpha: false });
 function cleanExport(o) {
   const e = Object.assign(defExport(), o && typeof o === 'object' ? o : {});
-  e.fmt = e.fmt === 'png' ? 'png' : 'mp4'; e.fps = num(e.fps, 30, 1, 120);
+  e.fmt = e.fmt === 'png' ? 'png' : 'mp4'; e.fps = num(e.fps, 30, 1, 120); e.alpha = !!e.alpha;
   e.w = Math.round(num(e.w, 1920, 16, 7680)); e.h = Math.round(num(e.h, 1080, 16, 4320));
   return e;
 }
 const defImage = (o = {}) => Object.assign({ src: 'sample', width: 32, threshold: 128, invert: false }, o);
 function makeClip(type, o = {}) {
-  const c = { id: newId(), type, enabled: true, hold: 1.5 };
+  const c = { id: newId(), type, enabled: true, hold: 1.5, idle: { mode: 'none', amt: 0.5, speed: 1 } };
   if (type === 'text') c.text = 'NEW TEXT';
   if (type === 'cipher') Object.assign(c, { text: '', mode: 'scramble', shift: 3, seed: 7, flicker: 8, ownType: false });
   if (type === 'text' || type === 'cipher') c.ty = defType();
   Object.assign(c, o);
   c.trans = defTrans(o.trans || {});
   if (type === 'image') c.image = defImage(o.image || {});
+  if (type === 'shape') { const d = defShape(o.shape || {}); c.shape = { kind: SHAPES[d.kind] ? d.kind : 'circle', size: Math.round(num(d.size, 28, 4, 160)), thick: Math.round(num(d.thick, 4, 1, 40)), rot: num(d.rot, 0, -180, 180) }; }
   if (type === 'squares' || type === 'bigsquare') c.sq = cleanSq(o.sq);
   if (c.ty) c.ty = cleanType(c.ty);
   return c;
@@ -261,16 +330,28 @@ function makeClip(type, o = {}) {
 const defTrail = () => ({ v: 3, on: true, palette: 'iridescent', length: 0.955, intensity: 0.85, width: 1, sharp: 0.35, haze: 0.9, disp: 0.6, sheen: 0.7, drift: 0.3, turb: 0.15, spread: 1, cycle: 0.4, start: 0, end: 9999 });
 function migrateTrail(tr) { if (!tr || (tr.v !== 2 && tr.v !== 3)) return {}; const o = Object.assign({}, tr); if (o.v === 2) { o.width = 1; o.v = 3; } return o; }
 // Square / big-square layout options live on those blocks (older scenes kept them under look).
-const defSq = () => ({ uniform: true, align: 'bottom', roundUp: true, assign: 'center', gap: 0 });
+const defSq = () => ({ uniform: true, align: 'bottom', roundUp: true, assign: 'center', gap: 0, sp: 'glyph', sgap: 2, words: true, cols: 0 });
 function cleanSq(o) {
   const d = defSq(); o = o && typeof o === 'object' ? o : {};
   return { uniform: o.uniform !== undefined ? !!o.uniform : d.uniform, align: ['bottom', 'center', 'top'].includes(o.align) ? o.align : d.align,
-    roundUp: o.roundUp !== undefined ? !!o.roundUp : d.roundUp, assign: o.assign === 'grid' ? 'grid' : 'center', gap: Math.round(num(o.gap, 0, 0, 8)) };
+    roundUp: o.roundUp !== undefined ? !!o.roundUp : d.roundUp, assign: o.assign === 'grid' ? 'grid' : 'center', gap: Math.round(num(o.gap, 0, 0, 8)),
+    sp: ['glyph', 'even', 'grid'].includes(o.sp) ? o.sp : d.sp, sgap: Math.round(num(o.sgap, d.sgap, 0, 32)), words: o.words !== undefined ? !!o.words : d.words, cols: Math.round(num(o.cols, 0, 0, 64)) };
 }
-const defLook = () => ({ snap: false, seams: false, bg: '#000000', fg: '#ffffff', pxMode: 'fit', scale: 1, px: 6, res: { mode: 'fit', w: 1920, h: 1080 }, trail: defTrail() });
+const defFx = () => ({ shape: 'square', pxScale: 1, color: 'solid', fg2: '#ff4fa3', hue: 0, cycle: 0.2, glow: 0, crt: 0, vignette: 0, bgMode: 'solid', bg2: '#141c38', jitter: 0, wave: 0, waveFreq: 1 });
+const FX_SHAPES = { square: 'Square', round: 'Round', diamond: 'Diamond', plus: 'Plus', ring: 'Ring', tri: 'Triangle' };
+function cleanFx(o) {
+  const f = Object.assign(defFx(), o && typeof o === 'object' ? o : {});
+  if (!FX_SHAPES[f.shape]) f.shape = 'square'; f.pxScale = num(f.pxScale, 1, 0.1, 3);
+  f.color = ['solid', 'hgrad', 'vgrad', 'radial', 'rainbow', 'speed'].includes(f.color) ? f.color : 'solid'; f.fg2 = hexOk(f.fg2, '#ff4fa3');
+  f.hue = num(f.hue, 0, -180, 180); f.cycle = num(f.cycle, 0.2, 0, 4); f.glow = num(f.glow, 0, 0, 2); f.crt = num(f.crt, 0, 0, 1); f.vignette = num(f.vignette, 0, 0, 1);
+  f.bgMode = ['solid', 'vgrad', 'radial'].includes(f.bgMode) ? f.bgMode : 'solid'; f.bg2 = hexOk(f.bg2, '#141c38');
+  f.jitter = num(f.jitter, 0, 0, 4); f.wave = num(f.wave, 0, -8, 8); f.waveFreq = num(f.waveFreq, 1, 0.05, 8);
+  return f;
+}
+const defLook = () => ({ snap: false, seams: false, bg: '#000000', fg: '#ffffff', pxMode: 'fit', scale: 1, px: 6, res: { mode: 'fit', w: 1920, h: 1080 }, trail: defTrail(), fx: defFx() });
 const hexOk = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d;
 function cleanLook(o) {
-  const L = Object.assign(defLook(), o || {}, { trail: Object.assign(defTrail(), migrateTrail(o && o.trail)) });
+  const L = Object.assign(defLook(), o || {}, { trail: Object.assign(defTrail(), migrateTrail(o && o.trail)), fx: cleanFx(o && o.fx) });
   L.bg = hexOk(L.bg, '#000000'); L.fg = hexOk(L.fg, '#ffffff');
   L.pxMode = L.pxMode === 'fixed' ? 'fixed' : 'fit'; L.scale = num(L.scale, 1, 0.05, 3); L.px = num(L.px, 6, 0.5, 64);
   const r = Object.assign({ mode: 'fit', w: 1920, h: 1080 }, o && o.res || {});
@@ -279,7 +360,7 @@ function cleanLook(o) {
 }
 function defaultScene() {
   return {
-    version: 1, playback: 'loop', name: 'Example scene', look: defLook(), cam: defCam(), export: defExport(),
+    version: 1, playback: 'loop', name: 'Example scene', look: defLook(), cam: defCam(), export: defExport(), audio: defAudio(), mods: [],
     clips: [
       makeClip('image', { hold: 1.2, trans: { dur: 2.2 } }),
       makeClip('text', { text: 'HELLO WORLD', hold: 1.8, trans: { dur: 1.2, order: 'sweep', stagger: 0.6 } }),
@@ -299,17 +380,19 @@ function normalizeScene(o) {
     if (typeof out.id !== 'string' || seen.has(out.id)) out.id = newId();
     seen.add(out.id);
     out.enabled = out.enabled !== false;
+    { const d = c.idle && typeof c.idle === 'object' ? c.idle : {}; out.idle = { mode: ['none', 'wobble', 'breathe', 'shimmer', 'glitch', 'wave'].includes(d.mode) ? d.mode : 'none', amt: num(d.amt, 0.5, 0, 4), speed: num(d.speed, 1, 0.05, 8) }; }
     out.hold = num(out.hold, 1.5, 0, 120);
     out.trans = defTrans(c.trans || {});
     out.trans.dur = num(out.trans.dur, 1.6, 0.05, 120);
     if (c.type === 'image') out.image = defImage(c.image || {});
+    if (c.type === 'shape') out.shape = makeClip('shape', { shape: c.shape }).shape;
     if (c.type === 'squares' || c.type === 'bigsquare') out.sq = cleanSq(Object.assign({}, o.look || {}, c.sq || {}));
     if (c.type === 'text' || c.type === 'cipher') { out.text = String(out.text ?? ''); out.ty = cleanType(c.ty); }
     if (c.type === 'cipher') out.ownType = !!c.ownType;
     return out;
   });
   if (!clips.length) throw new Error('The scene has no usable blocks.');
-  return { version: 1, playback: ['loop', 'pingpong', 'once'].includes(o.playback) ? o.playback : 'loop', name: String(o.name || 'Untitled scene').slice(0, 80), look: cleanLook(o.look), cam: cleanCam(o.cam), export: cleanExport(o.export), clips };
+  return { version: 1, playback: ['loop', 'pingpong', 'once'].includes(o.playback) ? o.playback : 'loop', name: String(o.name || 'Untitled scene').slice(0, 80), look: cleanLook(o.look), cam: cleanCam(o.cam), export: cleanExport(o.export), audio: cleanAudio(o.audio), mods: cleanMods(o.mods), clips };
 }
 
 const STORE = 'pc-scene-v1';
@@ -342,7 +425,7 @@ function sqOpts(i) {
   const c = S.clips[i];
   if (c.type !== 'bigsquare') return c.sq;
   const k = nearestText(i, ['squares']), base = k >= 0 ? S.clips[k].sq : c.sq;
-  return Object.assign({}, c.sq, { uniform: base.uniform, align: base.align });
+  return Object.assign({}, c.sq, { uniform: base.uniform, align: base.align, sp: base.sp, sgap: base.sgap, words: base.words, cols: base.cols });
 }
 function clipType(i) {
   const c = S.clips[i];
@@ -489,13 +572,13 @@ function layoutText(str, ty) {
 function layoutSquares(str, ty, so) {
   so = so || defSq();
   const T = layoutText(str, ty);
-  return memo('Q' + so.uniform + so.align + T.key, () => {
+  return memo('Q' + so.uniform + so.align + so.sp + so.sgap + so.words + so.cols + T.key, () => {
     const L = so;
     const gs = T.groups.map(g => {
       const px = [];
       for (let k = g.i0; k < g.i1; k++) px.push({ x: T.pts[k].x, y: T.pts[k].y, src: k });
       let mx = 0, my = 0; px.forEach(p => { mx += p.x + .5; my += p.y + .5; }); mx /= px.length; my /= px.length;
-      return { px, mx, my, line: g.line, s: Math.max(1, Math.floor(Math.sqrt(px.length))) };
+      return { px, mx, my, line: g.line, col: g.col, s: Math.max(1, Math.floor(Math.sqrt(px.length))) };
     });
     let maxS = 1; gs.forEach(g => maxS = Math.max(maxS, g.s));
     if (L.uniform) gs.forEach(g => g.s = maxS);
@@ -506,6 +589,9 @@ function layoutSquares(str, ty, so) {
       const o = lineInfo[g.line], cy = o.sum / o.n;
       g.sx = Math.round(g.mx - g.s / 2);
       g.sy = L.align === 'bottom' ? Math.round(cy + o.maxS / 2) - g.s : L.align === 'top' ? Math.round(cy - o.maxS / 2) : Math.round(cy - g.s / 2);
+    });
+    tidySquares(gs, L, maxS, ty);
+    gs.forEach((g, gi) => {
       packGrid(g.px, g.s);
       const all = g.px.concat(fillEmpty(g.px, g.s, src => ({ x: src.x, y: src.y, src: src.src })));
       const i0 = pts.length;
@@ -513,6 +599,38 @@ function layoutSquares(str, ty, so) {
       groups.push({ sx: g.sx, sy: g.sy, s: g.s, cx: g.sx + g.s / 2, cy: g.sy + g.s / 2, i0, i1: pts.length });
     });
     return { kind: 'squares', str, ty, so, tkey: T.key, pts, groups, maxS, w: T.w, h: T.h };
+  });
+}
+
+// Tidy spacing: equal gaps between squares (rows follow the text lines) or a clean centered grid.
+function tidySquares(gs, L, maxS, ty) {
+  if (L.sp === 'glyph' || !gs.length) return;
+  const gap = L.sgap, vAl = (g, rowS) => L.align === 'bottom' ? rowS - g.s : L.align === 'top' ? 0 : Math.round((rowS - g.s) / 2);
+  let rows = [];
+  if (L.sp === 'grid') {
+    const order = gs.slice().sort((a, b) => a.line - b.line || a.col - b.col);
+    const cols = L.cols > 0 ? L.cols : Math.ceil(Math.sqrt(order.length));
+    for (let k = 0; k < order.length; k += cols) rows.push(order.slice(k, k + cols).map(g => ({ g })));
+  } else {
+    const lines = new Map();
+    gs.forEach(g => { if (!lines.has(g.line)) lines.set(g.line, []); lines.get(g.line).push(g); });
+    rows = [...lines.keys()].sort((a, b) => a - b).map(k => {
+      const list = lines.get(k).sort((a, b) => a.col - b.col), out = [];
+      list.forEach((g, j) => { if (j && L.words && g.col - list[j - 1].col > 1) out.push({ space: true }); out.push({ g }); });
+      return out;
+    });
+  }
+  const rowS = rows.map(r => Math.max(1, ...r.filter(e => e.g).map(e => e.g.s)));
+  const widths = rows.map((r, ri) => r.reduce((w, e) => w + (e.g ? e.g.s : rowS[ri]), 0) + gap * Math.max(0, r.length - 1));
+  const maxW = Math.max(...widths), totalH = rowS.reduce((a, b) => a + b, 0) + gap * (rows.length - 1);
+  let y = -Math.round(totalH / 2);
+  rows.forEach((r, ri) => {
+    const al = L.sp === 'grid' ? 'center' : (ty && ty.align) || 'center';
+    let x = al === 'left' ? -Math.round(maxW / 2) : al === 'right' ? Math.round(maxW / 2) - widths[ri] : -Math.round(widths[ri] / 2);
+    r.forEach(e => {
+      if (e.g) { e.g.sx = x; e.g.sy = y + vAl(e.g, rowS[ri]); x += e.g.s + gap; } else x += rowS[ri] + gap;
+    });
+    y += rowS[ri] + gap;
   });
 }
 
@@ -601,9 +719,37 @@ function layoutImage(im) {
   });
 }
 
+function shapePath(g, kind, R, th) {
+  const poly = (n, r, rot = -Math.PI / 2) => { g.beginPath(); for (let k = 0; k < n; k++) { const a = rot + k * 2 * Math.PI / n; k ? g.lineTo(r * Math.cos(a), r * Math.sin(a)) : g.moveTo(r * Math.cos(a), r * Math.sin(a)); } g.closePath(); };
+  switch (kind) {
+    case 'circle': g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); return 'fill';
+    case 'ring': g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.arc(0, 0, Math.max(0, R - th), 0, Math.PI * 2, true); return 'fill';
+    case 'square': g.beginPath(); g.rect(-R, -R, 2 * R, 2 * R); return 'fill';
+    case 'frame': g.beginPath(); g.rect(-R, -R, 2 * R, 2 * R); g.rect(R - th, -R + th, -(2 * R - 2 * th), 2 * R - 2 * th); return 'fill';
+    case 'triangle': poly(3, R * 1.12); g.translate(0, R * 0.1); return 'fill';
+    case 'diamond': poly(4, R); return 'fill';
+    case 'hexagon': poly(6, R, 0); return 'fill';
+    case 'star': g.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? R * 0.42 : R; k ? g.lineTo(r * Math.cos(a), r * Math.sin(a)) : g.moveTo(r * Math.cos(a), r * Math.sin(a)); } g.closePath(); return 'fill';
+    case 'heart': g.beginPath(); for (let k = 0; k <= 64; k++) { const a = k / 64 * Math.PI * 2, x = 16 * Math.pow(Math.sin(a), 3), y = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)); k ? g.lineTo(x * R / 17, y * R / 17) : g.moveTo(x * R / 17, y * R / 17); } g.closePath(); return 'fill';
+    case 'cross': { const w = Math.max(th, R * 0.34); g.beginPath(); g.rect(-R, -w / 2, 2 * R, w); g.rect(-w / 2, -R, w, 2 * R); return 'fill'; }
+    case 'arrow': g.beginPath(); g.moveTo(R, 0); g.lineTo(0, -R); g.lineTo(0, -R * 0.4); g.lineTo(-R, -R * 0.4); g.lineTo(-R, R * 0.4); g.lineTo(0, R * 0.4); g.lineTo(0, R); g.closePath(); return 'fill';
+    case 'bolt': g.beginPath(); [[0.25, -1], [-0.55, 0.1], [0, 0.1], [-0.25, 1], [0.55, -0.15], [0, -0.15]].forEach(([x, y], k) => k ? g.lineTo(x * R, y * R) : g.moveTo(x * R, y * R)); g.closePath(); return 'fill';
+  }
+}
+function layoutShape(sh) {
+  return memo('S' + JSON.stringify(sh), () => {
+    const N = sh.size + 2, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.translate(N / 2, N / 2); g.rotate(sh.rot * Math.PI / 180); g.fillStyle = '#fff';
+    shapePath(g, sh.kind, sh.size / 2, sh.thick); g.fill('evenodd');
+    const d = g.getImageData(0, 0, N, N).data, pts = [], o = -Math.round(N / 2);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (d[(y * N + x) * 4 + 3] >= 128) pts.push({ x: o + x, y: o + y, g: -1 });
+    return { kind: 'shape', pts, groups: [], w: N, h: N };
+  });
+}
 function clipLayout(i, tick = 0) {
   const c = S.clips[i];
   if (c.type === 'image') return layoutImage(c.image);
+  if (c.type === 'shape') return layoutShape(c.shape);
   if (c.type === 'text' || c.type === 'cipher') return layoutText(clipString(i, tick), clipType(i));
   const str = clipString(i), ty = clipType(i);
   return c.type === 'squares' ? layoutSquares(str, ty, sqOpts(i)) : layoutBig(str, ty, sqOpts(i));
@@ -846,9 +992,205 @@ function rebuild() {
   scheduleSave();
 }
 let saveT = 0;
+// ---- undo / redo: scene snapshots, committed shortly after each change ----
+let HIST = [], hIdx = -1, histT = 0;
+function histPush() {
+  const j = JSON.stringify(S); if (j === HIST[hIdx]) return;
+  HIST = HIST.slice(0, hIdx + 1); HIST.push(j); if (HIST.length > 120) HIST.shift(); hIdx = HIST.length - 1; histUI();
+}
+function histUI() { const u = $('undo'), r = $('redo'); if (u) u.disabled = hIdx <= 0; if (r) r.disabled = hIdx >= HIST.length - 1; }
+function histGo(d) {
+  clearTimeout(histT); histPush();
+  const k = hIdx + d; if (k < 0 || k >= HIST.length) return;
+  hIdx = k; S = normalizeScene(JSON.parse(HIST[hIdx])); HIST[hIdx] = JSON.stringify(S);
+  if (sel && sel.kind !== 'cam' && sel.kind !== 'trail' && clipIndex(sel.id) < 0) sel = null;
+  LC.clear(); MC.clear(); rebuild(); renderInspector(); renderSide(); resize(); histUI();
+  status(d < 0 ? 'Undone.' : 'Redone.');
+}
 function scheduleSave() {
+  clearTimeout(histT); histT = setTimeout(histPush, 350);
   clearTimeout(saveT);
   saveT = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { } }, 400);
+}
+
+// ================= audio =================
+const A = { ctx: null, buf: null, src: null, gain: null, srcT0: 0, srcCtx0: 0, env: null, cum: null, beats: [], bpm: 0, peaks: null, fps: 100, dur: 0, taps: [] };
+function actx() { if (!A.ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; A.ctx = new C(); A.gain = A.ctx.createGain(); A.gain.connect(A.ctx.destination); A.gain.gain.value = S.audio.gain; } if (A.ctx.state === 'suspended') A.ctx.resume(); return A.ctx; }
+const IDB = { db: null,
+  open() { return this.db ? Promise.resolve(this.db) : new Promise((res, rej) => { const r = indexedDB.open('pixel-collapse', 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => res(this.db = r.result); r.onerror = () => rej(r.error); }); },
+  async put(k, v) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('files', 'readwrite'); t.objectStore('files').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
+  async get(k) { const db = await this.open(); return new Promise((res, rej) => { const r = db.transaction('files').objectStore('files').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async del(k) { const db = await this.open(); return new Promise(res => { const t = db.transaction('files', 'readwrite'); t.objectStore('files').delete(k); t.oncomplete = res; t.onerror = res; }); } };
+async function audioLoadBytes(bytes, name, persist) {
+  const C = window.AudioContext || window.webkitAudioContext; if (!C) throw new Error('This browser has no Web Audio.');
+  const tmp = A.ctx || new C();
+  const buf = await tmp.decodeAudioData(bytes.slice(0));
+  if (!A.ctx) { A.ctx = tmp; A.gain = A.ctx.createGain(); A.gain.connect(A.ctx.destination); A.gain.gain.value = S.audio.gain; }
+  audioStop(); A.buf = buf; A.dur = buf.duration;
+  status('Analysing ' + name + '…');
+  await audioAnalyse(buf);
+  if (persist) { try { await IDB.put('audio', { bytes, name }); } catch (e) { } }
+  S.audio.name = name; scheduleSave(); renderSide(); renderTimeline(); renderInspector();
+  status('Loaded ' + name + ' · ' + buf.duration.toFixed(1) + 's' + (A.bpm ? ' · ~' + Math.round(A.bpm) + ' BPM' : ''));
+}
+async function audioAnalyse(buf) {
+  // render the track at 22 kHz through three band filters, then take a 100 fps RMS envelope per band
+  const sr = 22050, len = Math.max(1, Math.ceil(buf.duration * sr)), hop = sr / A.fps, nF = Math.ceil(len / hop);
+  const band = async (type, f, q) => {
+    const oc = new OfflineAudioContext(1, len, sr), s = oc.createBufferSource(); s.buffer = buf;
+    let node = s; if (type) { const bq = oc.createBiquadFilter(); bq.type = type; bq.frequency.value = f; if (q) bq.Q.value = q; s.connect(bq); node = bq; }
+    node.connect(oc.destination); s.start(); const r = await oc.startRendering(), d = r.getChannelData(0), e = new Float32Array(nF);
+    for (let k = 0; k < nF; k++) { let acc = 0; const a = Math.floor(k * hop), b = Math.min(d.length, Math.floor((k + 1) * hop)); for (let i = a; i < b; i++) acc += d[i] * d[i]; e[k] = Math.sqrt(acc / Math.max(1, b - a)); }
+    const sorted = Float32Array.from(e).sort(), ref = sorted[Math.floor(sorted.length * 0.98)] || 1e-6;
+    for (let k = 0; k < nF; k++) e[k] = Math.min(1.5, e[k] / Math.max(1e-6, ref));
+    return e;
+  };
+  const [all, low, mid, high] = await Promise.all([band(null), band('lowpass', 160, 0.7), band('bandpass', 1200, 0.8), band('highpass', 4500, 0.7)]);
+  A.env = { all, low, mid, high }; A.cum = {};
+  for (const k in A.env) { const e = A.env[k], c = new Float64Array(nF + 1); for (let i = 0; i < nF; i++) c[i + 1] = c[i] + Math.pow(Math.min(1, e[i]), 1.5) + 1e-4; A.cum[k] = c; }
+  const P = 2048, pk = new Float32Array(P); for (let i = 0; i < P; i++) { let m = 0; const a = Math.floor(i * nF / P), b = Math.max(a + 1, Math.floor((i + 1) * nF / P)); for (let k = a; k < b && k < nF; k++) m = Math.max(m, all[k]); pk[i] = Math.min(1, m); }
+  A.peaks = pk;
+  audioDetect();
+}
+function audioDetect() {
+  if (!A.env) return;
+  const low = A.env.low, all = A.env.all, n = low.length, fl = new Float32Array(n);
+  for (let i = 1; i < n; i++) fl[i] = Math.max(0, low[i] - low[i - 1]) + 0.5 * Math.max(0, all[i] - all[i - 1]);
+  const W = 50, mul = 2.4 - 1.7 * S.audio.sens, beats = [];
+  let sum = 0; const pre = new Float64Array(n + 1); for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + fl[i];
+  let last = -1e9;
+  for (let i = 2; i < n - 2; i++) {
+    const a = Math.max(0, i - W), b = Math.min(n, i + W), mean = (pre[b] - pre[a]) / (b - a), thr = mean * mul + 0.02;
+    if (fl[i] > thr && fl[i] >= fl[i - 1] && fl[i] >= fl[i + 1] && fl[i] >= fl[i - 2] && fl[i] >= fl[i + 2] && i - last >= 0.22 * A.fps) { beats.push(i / A.fps); last = i; }
+  }
+  A.beats = beats;
+  // tempo: autocorrelation of the onset curve, 60–200 BPM, folded into 80–170
+  let best = 0, bl = 0;
+  for (let lag = Math.round(A.fps * 60 / 200); lag <= Math.round(A.fps * 60 / 60); lag++) { let c = 0; for (let i = lag; i < n; i++) c += fl[i] * fl[i - lag]; if (c > best) { best = c; bl = lag; } }
+  let bpm = bl ? 60 * A.fps / bl : 0; while (bpm && bpm < 80) bpm *= 2; while (bpm > 170) bpm /= 2;
+  A.bpm = bpm;
+}
+function audioClear() { audioStop(); A.buf = null; A.env = null; A.cum = null; A.beats = []; A.bpm = 0; A.peaks = null; S.audio.name = ''; IDB.del('audio').catch(() => { }); scheduleSave(); renderSide(); renderTimeline(); }
+// timeline time ↔ audio time
+const aT = t => t + S.audio.offset;
+function beatPeriod() { return S.audio.beats === 'grid' || !A.bpm ? 60 / S.audio.bpm : 60 / A.bpm; }
+function beatsBetween(t0, t1) { // timeline-time beats in [t0, t1)
+  const out = [];
+  if (S.audio.beats === 'grid') { const P = 60 / S.audio.bpm, f = S.audio.beatOffset; for (let k = Math.ceil((t0 - f) / P - 1e-9); f + k * P < t1; k++) out.push(f + k * P); return out; }
+  if (S.audio.beats !== 'detected' || !A.beats.length) return out;
+  const a0 = aT(t0), a1 = aT(t1), B = A.beats; let lo = 0, hi = B.length; while (lo < hi) { const m = (lo + hi) >> 1; if (B[m] < a0) lo = m + 1; else hi = m; }
+  for (let k = lo; k < B.length && B[k] < a1; k++) out.push(B[k] - S.audio.offset);
+  return out;
+}
+function envAt(band, t) { if (!A.env) return 0; const e = A.env[band] || A.env.all, x = aT(t) * A.fps, i = Math.floor(x); if (i < 0 || i >= e.length - 1) return 0; return Math.min(1, e[i] + (e[i + 1] - e[i]) * (x - i)); }
+function cumAt(band, t) { const c = A.cum[band] || A.cum.all, x = Math.max(0, Math.min(c.length - 1, aT(t) * A.fps)), i = Math.min(c.length - 2, Math.floor(x)); return c[i] + (c[i + 1] - c[i]) * (x - i); }
+function beatPulse(t, decay) { const bs = beatsBetween(t - 2, t + 1e-6); if (!bs.length) return 0; return Math.exp(-(t - bs[bs.length - 1]) / Math.max(0.02, decay)); }
+const STEP_EASE = { snap: x => 1 - Math.pow(1 - x, 3), smooth: x => x * x * (3 - 2 * x), linear: x => x };
+// Transition progress driven by audio: returns the effective local time (0..D) for local time lt.
+function driveLT(seg, lt) {
+  const tr = seg.tr, D = seg.t1 - seg.t0;
+  if (tr.drive === 'beats') {
+    const t = seg.t0 + lt, bs = beatsBetween(seg.t0 - 1e-4, seg.t1 + 1e-4); if (!bs.length) return lt;
+    let k = 0; while (k < bs.length && bs[k] <= t) k++;
+    if (!k) return 0;
+    const b = bs[k - 1], iv = Math.max(0.05, (k < bs.length ? bs[k] : b + beatPeriod()) - b);
+    const f = STEP_EASE[tr.stepEase](clamp01((t - b) / (tr.stepLen * iv)));
+    return Math.min(1, (k - 1 + f) * tr.beatStep) * D;
+  }
+  if (tr.drive === 'level' && A.cum) {
+    const c0 = cumAt(tr.band, seg.t0), c1 = cumAt(tr.band, seg.t1);
+    return c1 - c0 > 1e-6 ? clamp01((cumAt(tr.band, seg.t0 + lt) - c0) / (c1 - c0)) * D : lt;
+  }
+  return lt;
+}
+function beatsToFinish(seg) { const tr = seg.tr, need = Math.ceil(1 / tr.beatStep - 1e-6); return { need, have: beatsBetween(seg.t0 - 1e-4, seg.t1 + 1e-4).length }; }
+function fitDurToBeats(i) {
+  const s = segs.find(s => s.kind === 'trans' && s.i === i); if (!s) return;
+  const tr = S.clips[i].trans, need = Math.ceil(1 / tr.beatStep - 1e-6), bs = beatsBetween(s.t0 - 1e-4, s.t0 + 600);
+  if (bs.length < need) { status('Not enough beats after this point.'); return; }
+  const last = bs[need - 1], nxt = bs[need] !== undefined ? bs[need] : last + beatPeriod();
+  tr.dur = Math.max(0.1, Math.round((last + tr.stepLen * (nxt - last) - s.t0) * 1000) / 1000);
+  rebuild(); renderInspector(); status('Duration fitted: ' + need + ' beats.');
+}
+// playback: the audio clock drives the playhead while the track plays
+function audioActive() { return !!(A.src && A.ctx); }
+function audioClock() { return A.srcT0 + (A.ctx.currentTime - A.srcCtx0); }
+function audioStop() { if (A.src) { try { A.src.stop(); } catch (e) { } A.src.disconnect(); A.src = null; } }
+function audioStart(t) {
+  audioStop(); if (!A.buf || S.audio.mute) return; const c = actx(); if (!c) return;
+  const at = aT(t); if (at >= A.buf.duration) return;
+  const s = c.createBufferSource(); s.buffer = A.buf; s.connect(A.gain); A.gain.gain.value = S.audio.gain;
+  const when = c.currentTime + 0.02; s.start(when + Math.max(0, -at), Math.max(0, at));
+  A.src = s; A.srcT0 = t; A.srcCtx0 = when; s.onended = () => { if (A.src === s) A.src = null; };
+}
+function audioRestart() { if (A.src) audioStart(tl); }
+function audioSync() {
+  const want = playing && !!A.buf && !S.audio.mute && dir > 0 && !exporting;
+  if (!want) { if (A.src) audioStop(); return; }
+  if (!A.src) { if (aT(tl) < A.buf.duration) audioStart(tl); return; }
+  if (Math.abs(audioClock() - tl) > 0.06) audioStart(tl);
+}
+// restore the last track on load
+IDB.get('audio').then(r => { if (r && r.bytes) audioLoadBytes(r.bytes, r.name, false).catch(() => { }); }).catch(() => { });
+
+// ================= modulators =================
+const LFO = { sine: x => Math.sin(x * 2 * Math.PI), tri: x => 1 - 4 * Math.abs(((x + 0.25) % 1 + 1) % 1 - 0.5), square: x => (((x % 1) + 1) % 1) < 0.5 ? 1 : -1, saw: x => 2 * ((((x % 1) + 1) % 1)) - 1, ramp: x => 1 - 2 * ((((x % 1) + 1) % 1)) };
+function hash1(n) { n = (n ^ 61) ^ (n >>> 16); n = Math.imul(n, 9); n ^= n >>> 4; n = Math.imul(n, 0x27d4eb2d); n ^= n >>> 15; return (n >>> 0) / 4294967296; }
+function vnoise(x, seed) { const i = Math.floor(x), f = x - i, a = hash1(i * 7919 + seed), b = hash1((i + 1) * 7919 + seed), s = f * f * (3 - 2 * f); return (a + (b - a) * s) * 2 - 1; }
+const MIC = { on: false, an: null, buf: null, level: 0, low: 0, prevLow: 0, avgFlux: 0, beatT: -9, stream: null };
+async function micEnable() {
+  if (MIC.on) return true;
+  try {
+    const c = actx(); if (!c) throw new Error('no audio');
+    MIC.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const srcN = c.createMediaStreamSource(MIC.stream); MIC.an = c.createAnalyser(); MIC.an.fftSize = 1024; MIC.an.smoothingTimeConstant = 0.5; srcN.connect(MIC.an);
+    MIC.buf = new Float32Array(MIC.an.fftSize); MIC.fbuf = new Uint8Array(MIC.an.frequencyBinCount); MIC.on = true; status('Microphone on.'); return true;
+  } catch (e) { status('Microphone not available: ' + (e.message || e)); return false; }
+}
+function micTick() {
+  if (!MIC.on) return;
+  MIC.an.getFloatTimeDomainData(MIC.buf); let acc = 0; for (let i = 0; i < MIC.buf.length; i++) acc += MIC.buf[i] * MIC.buf[i];
+  const rms = Math.sqrt(acc / MIC.buf.length); MIC.level += (Math.min(1, rms * 5) - MIC.level) * 0.35;
+  MIC.an.getByteFrequencyData(MIC.fbuf); let lo = 0; for (let i = 1; i < 8; i++) lo += MIC.fbuf[i]; lo /= 7 * 255;
+  const fl = Math.max(0, lo - MIC.prevLow); MIC.prevLow = lo; MIC.avgFlux = MIC.avgFlux * 0.95 + fl * 0.05;
+  const now = performance.now() / 1000; if (fl > MIC.avgFlux * 3 + 0.04 && now - MIC.beatT > 0.22) MIC.beatT = now; MIC.low = lo;
+}
+function segProgress(t) { const sg = segAt(t); if (!sg || sg.kind !== 'trans') return 0; const D = sg.t1 - sg.t0; return clamp01(driveLT(sg, t - sg.t0) / Math.max(1e-6, D)); }
+function modRaw(m, t) {
+  switch (m.src) {
+    case 'lfo': { const f = m.sync ? t / beatPeriod() * m.rate : t * m.rate; const v = LFO[m.shape](f); return m.bipolar ? v : (v + 1) / 2; }
+    case 'noise': { const v = vnoise(t * m.rate, hashStr(m.id) & 0xffff); return m.bipolar ? v : (v + 1) / 2; }
+    case 'audio': { if (!A.env) return 0; if (m.smooth <= 0.011) return envAt(m.band, t); let a = 0; for (let k = 0; k < 6; k++) a += envAt(m.band, t - m.smooth * k / 5); return a / 6; }
+    case 'beat': return beatPulse(t, m.decay);
+    case 'mic': return exporting ? 0 : MIC.level;
+    case 'micbeat': return exporting ? 0 : Math.exp(-(performance.now() / 1000 - MIC.beatT) / Math.max(0.02, m.decay));
+    case 'progress': return segProgress(t);
+    case 'inflight': return Math.sin(Math.PI * segProgress(t));
+  }
+  return 0;
+}
+let MODV = {};
+function modsAt(t) { const o = {}; for (const m of S.mods || []) if (m.on) { const v = modRaw(m, t) * m.amount; o[m.target] = (o[m.target] || 0) + v; m.last = v; } return o; }
+// colour helpers
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function rgbHex(r, g, b) { return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join(''); }
+function hueShift(hex, deg) {
+  if (!deg) return hex; const [r, g, b] = hexRgb(hex).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return hex; const sa = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + deg) % 360; if (h < 0) h += 360;
+  const q = l < 0.5 ? l * (1 + sa) : l + sa - l * sa, p2 = 2 * l - q, f = x => { x = (x % 1 + 1) % 1; return x < 1 / 6 ? p2 + (q - p2) * 6 * x : x < 0.5 ? q : x < 2 / 3 ? p2 + (q - p2) * (2 / 3 - x) * 6 : p2; };
+  return rgbHex(f(h / 360 + 1 / 3) * 255, f(h / 360) * 255, f(h / 360 - 1 / 3) * 255);
+}
+function mixHex(a, b, k) { const x = hexRgb(a), y = hexRgb(b); return rgbHex(x[0] + (y[0] - x[0]) * k, x[1] + (y[1] - x[1]) * k, x[2] + (y[2] - x[2]) * k); }
+const PC = document.createElement('canvas'), pctx = PC.getContext('2d');
+let SCAN = null;
+function scanPattern(g) { if (!SCAN) { const c = document.createElement('canvas'); c.width = 1; c.height = 3; const x = c.getContext('2d'); x.fillStyle = 'rgba(0,0,0,1)'; x.fillRect(0, 2, 1, 1); SCAN = c; } return g.createPattern(SCAN, 'repeat'); }
+function paintBg(g, w, h) {
+  const F = S.look.fx;
+  if (F.bgMode === 'vgrad') { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, S.look.bg); gr.addColorStop(1, F.bg2); g.fillStyle = gr; }
+  else if (F.bgMode === 'radial') { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.hypot(w, h) / 2); gr.addColorStop(0, F.bg2); gr.addColorStop(1, S.look.bg); g.fillStyle = gr; }
+  else g.fillStyle = S.look.bg;
+  g.fillRect(0, 0, w, h);
 }
 
 // ================= render =================
@@ -1085,17 +1427,19 @@ function draw(t, delta = 0) {
   const seg = segAt(t);
   const T = S.look.trail, fxOn = !!(FX && T.on);
   if (fxShown !== fxOn) { fxShown = fxOn; if (FX) { FX.canvas.hidden = !fxOn; if (!fxOn) FX.clear(); } }
-  if (fxOn) ctx.clearRect(0, 0, W, Hh); else { ctx.fillStyle = S.look.bg; ctx.fillRect(0, 0, W, Hh); }
+  const MV = MODV = modsAt(t), alphaOut = exporting && S.export.alpha && S.export.fmt === 'png';
+  if (fxOn || alphaOut) ctx.clearRect(0, 0, W, Hh); else paintBg(ctx, W, Hh);
   if (!seg) return;
   const LK = S.look;
-  let p = LK.pxMode === 'fixed' ? LK.px * Hh / 1080 : Math.min(W * 0.9 / ext.w, Hh * 0.82 / ext.h) * LK.scale;
+  let p = LK.pxMode === 'fixed' ? LK.px * Hh / 1080 : Math.min(W * 0.9 / ext.w, Hh * 0.82 / ext.h) * Math.max(0.02, LK.scale + (MV['look.scale'] || 0));
   p = p >= 1 ? Math.floor(p) : Math.max(0.05, p);
   const ox = Math.floor(W / 2), oy = Math.floor(Hh / 2);
-  const PR = makeProj(camAt(t), W, Hh, ox, oy), zp = p * PR.z, scr = [0, 0], scr2 = [0, 0];
+  const CV = camAt(t); for (const k in CAM_PARAMS) if (MV['cam.' + k]) CV[k] += MV['cam.' + k];
+  const PR = makeProj(CV, W, Hh, ox, oy), zp = p * PR.z, scr = [0, 0], scr2 = [0, 0];
   const inset = S.look.seams && p >= 3 ? Math.max(1, Math.round(p * 0.1)) : 0, sz = p - inset, snap = S.look.snap;
   let nS = 0;
 
-  let hud, count, pts = null, m = null, P = null;
+  let hud, count, pts = null, m = null, P = null, U = null, idle = null;
   if (seg.kind === 'hold') {
     const c = S.clips[seg.i];
     let L = seg.L;
@@ -1105,14 +1449,15 @@ function draw(t, delta = 0) {
       if (tick) L = layoutText(clipString(seg.i, tick), clipType(seg.i));
     }
     pts = L.pts; hud = TYPES[c.type] + ' ' + (seg.i + 1); count = L.pts.length;
+    if (c.idle && c.idle.mode !== 'none') idle = { mode: c.idle.mode, amt: c.idle.amt, sp: c.idle.speed, lt: t - seg.t0, env: Math.min(1, (t - seg.t0) / 0.3, (seg.t1 - t) / 0.3) };
   } else {
     m = seg.mv; const tr = seg.tr, D = seg.t1 - seg.t0, lt = t - seg.t0;
     hud = TYPES[S.clips[seg.i].type] + ' ' + (seg.i + 1) + ' → ' + TYPES[S.clips[seg.j].type] + ' ' + (seg.j + 1); count = m.n;
     if (!m.n) pts = (lt < D / 2 ? seg.A : seg.B).pts;
     else {
       const sp = tr.stagger * D, md = Math.max(0.03, D - sp), a = 0.5 + 0.5 * tr.overlap, e = EASE[tr.ease] || EASE.cubic;
-      const os = tr.overshoot || 0, OP = 0.7; // overshoot: travel past the target by os × distance, then settle back
-      const corner = os > 0 && tr.osMode !== 'axis' ? tr.osMode : '', OS = 0.3;
+      const os = Math.max(0, (tr.overshoot || 0) + (MV['trans.overshoot'] || 0)), OP = 0.7; // overshoot: travel past the target by os × distance, then settle back
+      const corner = os > 0 && tr.osMode !== 'axis' ? tr.osMode : '', OS = 0.3, pth = tr.path || 'axis';
       const ov = os > 0 ? (x => x < OP ? (1 + os) * e(x / OP) : 1 + os - os * e((x - OP) / (1 - OP))) : e;
       const fo = tr.fo, ramp = rampLUT(fo.ramp), idf = x => x, rampW = fo.rampAxis ? idf : ramp, rampA = fo.rampAxis ? ramp : idf, plain = fo.type === 'plain', FC = new Map();
       const fieldAt = ltx => { let F = FC.get(ltx); if (!F) { F = foField(fo, m, clamp01(ltx / D)); FC.set(ltx, F); } return F; };
@@ -1126,7 +1471,13 @@ function draw(t, delta = 0) {
         }
         if (u <= 0) { out[0] = m.fx[i]; out[1] = m.fy[i]; }
         else if (u >= 1) { out[0] = m.tx[i]; out[1] = m.ty[i]; }
-        else {
+        else if (pth !== 'axis') { // straight / arc / spiral paths move both axes together
+          const f = ov(rampA(u)), dx = m.tx[i] - m.fx[i], dy = m.ty[i] - m.fy[i];
+          let x = m.fx[i] + dx * f, y = m.fy[i] + dy * f;
+          if (pth === 'arc') { const b = Math.sin(Math.PI * Math.min(1, f)) * tr.bend * (m.axis[i] ? -1 : 1); x += -dy * b * 0.5; y += dx * b * 0.5; }
+          else if (pth === 'spiral') { const a = (1 - Math.min(1, f)) * tr.turns * 2 * Math.PI * (m.axis[i] ? -1 : 1), ca = Math.cos(a), sa = Math.sin(a), rx = x - m.tx[i], ry = y - m.ty[i]; x = m.tx[i] + rx * ca - ry * sa; y = m.ty[i] + rx * sa + ry * ca; }
+          out[0] = x; out[1] = y;
+        } else {
           let f, g;
           if (corner) { // both axes overshoot first (X+os, then Y+os), then settle back together
             const v = Math.min(1, u / (1 - OS)), w = clamp01((u - (1 - OS)) / OS);
@@ -1138,17 +1489,18 @@ function draw(t, delta = 0) {
         }
         return u;
       };
-      P = new Float32Array(m.n * 2);
+      P = new Float32Array(m.n * 2); U = new Float32Array(m.n);
       const cur = [0, 0], prev = [0, 0], sub = [0, 0];
+      const ltE = driveLT(seg, lt), ltP = driveLT(seg, lt - delta);
       const amt = tr.trail ?? 1, emit = fxOn && delta && amt > 0 && t >= T.start && t <= Math.min(T.end, total);
       const spread = 1 / Math.max(16, ext.w);
       if (emit && SPL.length < m.n * 6) SPL = new Float32Array(m.n * 6);
       const splatRad = Math.max(0.75, zp / 4 * T.width);
       for (let i = 0; i < m.n; i++) {
-        const u = pos(i, lt, cur);
-        P[i * 2] = cur[0]; P[i * 2 + 1] = cur[1];
+        const u = pos(i, ltE, cur);
+        P[i * 2] = cur[0]; P[i * 2 + 1] = cur[1]; U[i] = u;
         if (!emit) continue;
-        const uP = pos(i, lt - delta, prev);
+        const uP = pos(i, ltP, prev);
         if ((u <= 0 || u >= 1) && (uP <= 0 || uP >= 1)) continue;
         if (cur[0] === prev[0] && cur[1] === prev[1]) continue;
         const env = Math.sin(Math.PI * clamp01(Math.min(Math.max(u, uP), 1)));
@@ -1159,7 +1511,7 @@ function draw(t, delta = 0) {
         if ((nS + N) * 6 > SPL.length) { const g = new Float32Array(Math.max(SPL.length * 2, (nS + N) * 6 + 6 * 1024)); g.set(SPL); SPL = g; }
         let ax = prev[0], ay = prev[1];
         for (let s = 1; s <= N; s++) {
-          if (s < N) pos(i, lt - delta + delta * s / N, sub); else { sub[0] = cur[0]; sub[1] = cur[1]; }
+          if (s < N) pos(i, ltP + (ltE - ltP) * s / N, sub); else { sub[0] = cur[0]; sub[1] = cur[1]; }
           const o = nS * 6;
           if (PR.proj((ax + .5) * p, (ay + .5) * p, scr) && PR.proj((sub[0] + .5) * p, (sub[1] + .5) * p, scr2)) {
             SPL[o] = scr[0] / 2; SPL[o + 1] = (Hh - scr[1]) / 2; SPL[o + 2] = scr2[0] / 2; SPL[o + 3] = (Hh - scr2[1]) / 2;
@@ -1170,31 +1522,95 @@ function draw(t, delta = 0) {
       }
     }
   }
-  if (fxOn) FX.frame(delta, t, SPL, nS, T, Math.max(0.75, zp / 4 * T.width));
+  if (fxOn) { const T2 = MV['trail.intensity'] || MV['trail.width'] ? Object.assign({}, T, { intensity: Math.max(0, T.intensity + (MV['trail.intensity'] || 0)), width: Math.max(0.1, T.width + (MV['trail.width'] || 0)) }) : T; FX.frame(delta, t, SPL, nS, T2, Math.max(0.75, zp / 4 * T2.width)); }
 
-  ctx.fillStyle = LK.fg;
-  const ins = inset / p, n = pts ? pts.length : m.n;
-  if (PR.flat) { // fast path: axis-aligned squares, edges rounded so neighbours never leave seams
-    const cx = PR.cx, cy = PR.cy, iz = inset * PR.z;
-    for (let i = 0; i < n; i++) {
-      let x = pts ? pts[i].x : P[i * 2], y = pts ? pts[i].y : P[i * 2 + 1];
-      if (snap) { x = Math.round(x); y = Math.round(y); }
-      const x0 = Math.round(cx + x * zp), y0 = Math.round(cy + y * zp), x1 = Math.round(cx + (x + 1) * zp), y1 = Math.round(cy + (y + 1) * zp);
-      ctx.fillRect(x0 + iz, y0 + iz, Math.max(1, x1 - x0 - iz), Math.max(1, y1 - y0 - iz));
+  // ---- pixels go to their own layer, then glow / scanlines / vignette composite onto the main canvas
+  if (PC.width !== W || PC.height !== Hh) { PC.width = W; PC.height = Hh; }
+  const g = pctx; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, Hh);
+  const FXs = LK.fx, n = pts ? pts.length : m.n, ins = inset / p;
+  let sizeK = Math.max(0.05, FXs.pxScale * (1 + (MV['px.size'] || 0)));
+  const jit = Math.max(0, FXs.jitter + (MV['fx.jitter'] || 0)), wav = FXs.wave + (MV['fx.wave'] || 0), hue = FXs.hue + (MV['fx.hue'] || 0);
+  if (idle && idle.mode === 'breathe') sizeK *= Math.max(0.05, 1 + idle.amt * 0.35 * idle.env * Math.sin(idle.lt * idle.sp * Math.PI * 2));
+  const tick = Math.floor(t * 24), needOff = jit > 0 || wav !== 0 || (idle && idle.mode !== 'breathe');
+  const XY = [0, 0];
+  const getXY = i => {
+    let x = pts ? pts[i].x : P[i * 2], y = pts ? pts[i].y : P[i * 2 + 1];
+    if (needOff) {
+      if (jit > 0) { x += (hash1(i * 2654435761 + tick) - 0.5) * jit; y += (hash1(i * 40503 + tick * 7) - 0.5) * jit; }
+      if (wav) y += Math.sin(x * 0.35 * FXs.waveFreq + t * 4) * wav;
+      if (idle) {
+        const A0 = idle.amt * idle.env, ph = idle.lt * idle.sp;
+        if (idle.mode === 'wobble') { x += Math.sin(ph * 6.3 + y * 0.6) * A0; y += Math.cos(ph * 5.1 + x * 0.6) * A0 * 0.6; }
+        else if (idle.mode === 'wave') y += Math.sin(x * 0.4 - ph * 7) * A0 * 1.5;
+        else if (idle.mode === 'shimmer') { const k = Math.floor(ph * 12); if (hash1(i * 977 + k) < 0.12 * Math.min(1, A0)) { x += (hash1(i + k * 31) - 0.5) * 2; y += (hash1(i * 3 + k) - 0.5) * 2; } }
+        else if (idle.mode === 'glitch') { const k = Math.floor(ph * 10), row = Math.floor(y); if (hash1(row * 131 + k * 7) < 0.18 * Math.min(1, A0 + 0.2)) x += (hash1(row + k * 13) - 0.5) * 12 * A0; }
+      }
     }
-  } else { // tilted / rolled camera: project every pixel's corners, fill as one path
-    const a = [0, 0], b = [0, 0], c = [0, 0], d = [0, 0];
-    ctx.beginPath();
-    for (let i = 0; i < n; i++) {
-      let x = pts ? pts[i].x : P[i * 2], y = pts ? pts[i].y : P[i * 2 + 1];
-      if (snap) { x = Math.round(x); y = Math.round(y); }
-      const xa = (x + ins) * p, ya = (y + ins) * p, xb = (x + 1) * p, yb = (y + 1) * p;
-      if (!PR.proj(xa, ya, a) || !PR.proj(xb, ya, b) || !PR.proj(xb, yb, c) || !PR.proj(xa, yb, d)) continue;
-      ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath();
+    if (snap) { x = Math.round(x); y = Math.round(y); }
+    XY[0] = x; XY[1] = y; return XY;
+  };
+  // fill style
+  const fg1 = hueShift(LK.fg, hue), fg2 = hueShift(FXs.fg2, hue);
+  const halfW = ext.w * zp / 2, halfH = ext.h * zp / 2, ccx = PR.cx, ccy = PR.cy;
+  const styleFor = mode => {
+    if (mode === 'hgrad' || mode === 'vgrad') { const gr = mode === 'hgrad' ? g.createLinearGradient(ccx - halfW, 0, ccx + halfW, 0) : g.createLinearGradient(0, ccy - halfH, 0, ccy + halfH); gr.addColorStop(0, fg1); gr.addColorStop(1, fg2); return gr; }
+    if (mode === 'radial') { const gr = g.createRadialGradient(ccx, ccy, 0, ccx, ccy, Math.max(halfW, halfH) * 1.1); gr.addColorStop(0, fg1); gr.addColorStop(1, fg2); return gr; }
+    if (mode === 'rainbow') { const gr = g.createLinearGradient(ccx - halfW, ccy - halfH, ccx + halfW, ccy + halfH), off = t * FXs.cycle * 360; for (let k = 0; k <= 6; k++) gr.addColorStop(k / 6, `hsl(${(off + hue + k * 60) % 360},85%,62%)`); return gr; }
+    return fg1;
+  };
+  // one pixel → path
+  const shape = FXs.shape, PI2 = Math.PI * 2;
+  const addShape = (cx, cy, hw, hh) => {
+    if (shape === 'square') g.rect(cx - hw, cy - hh, hw * 2, hh * 2);
+    else if (shape === 'round') { const r = Math.min(hw, hh); g.moveTo(cx + r, cy); g.arc(cx, cy, r, 0, PI2); }
+    else if (shape === 'diamond') { g.moveTo(cx, cy - hh); g.lineTo(cx + hw, cy); g.lineTo(cx, cy + hh); g.lineTo(cx - hw, cy); g.closePath(); }
+    else if (shape === 'plus') { const tw = hw / 3, th = hh / 3; g.rect(cx - hw, cy - th, hw * 2, th * 2); g.rect(cx - tw, cy - hh, tw * 2, hh * 2); }
+    else if (shape === 'ring') { const r = Math.min(hw, hh); g.moveTo(cx + r, cy); g.arc(cx, cy, r, 0, PI2); g.moveTo(cx + r * 0.55, cy); g.arc(cx, cy, r * 0.55, 0, PI2, true); }
+    else if (shape === 'tri') { g.moveTo(cx, cy - hh); g.lineTo(cx + hw, cy + hh); g.lineTo(cx - hw, cy + hh); g.closePath(); }
+  };
+  const drawSet = filter => {
+    g.beginPath();
+    if (PR.flat) {
+      const cx = PR.cx, cy = PR.cy, iz = inset * PR.z;
+      for (let i = 0; i < n; i++) {
+        if (filter && !filter(i)) continue;
+        const [x, y] = getXY(i);
+        if (shape === 'square' && sizeK === 1) { const x0 = Math.round(cx + x * zp), y0 = Math.round(cy + y * zp), x1 = Math.round(cx + (x + 1) * zp), y1 = Math.round(cy + (y + 1) * zp); g.rect(x0 + iz, y0 + iz, Math.max(1, x1 - x0 - iz), Math.max(1, y1 - y0 - iz)); }
+        else { const h2 = Math.max(0.5, (zp - iz) * sizeK / 2); addShape(cx + (x + 0.5) * zp + iz / 2, cy + (y + 0.5) * zp + iz / 2, h2, h2); }
+      }
+    } else {
+      const a = [0, 0], b = [0, 0], c = [0, 0], d = [0, 0], k0 = (1 - sizeK) / 2;
+      for (let i = 0; i < n; i++) {
+        if (filter && !filter(i)) continue;
+        const [x, y] = getXY(i);
+        if (shape === 'square') {
+          const xa = (x + ins + k0) * p, ya = (y + ins + k0) * p, xb = (x + 1 - k0) * p, yb = (y + 1 - k0) * p;
+          if (!PR.proj(xa, ya, a) || !PR.proj(xb, ya, b) || !PR.proj(xb, yb, c) || !PR.proj(xa, yb, d)) continue;
+          g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath();
+        } else {
+          if (!PR.proj((x + 0.5) * p, (y + 0.5) * p, a) || !PR.proj((x + 1.5) * p, (y + 0.5) * p, b)) continue;
+          const hw = Math.hypot(b[0] - a[0], b[1] - a[1]) * sizeK / 2; addShape(a[0], a[1], hw, hw);
+        }
+      }
     }
-    ctx.fill();
+    g.fill();
+  };
+  if (FXs.color === 'speed' && U) { // in-flight pixels blend towards the second colour
+    for (let bk = 0; bk < 5; bk++) { g.fillStyle = mixHex(fg1, fg2, bk / 4); drawSet(i => { const u = U[i], v = u <= 0 || u >= 1 ? 0 : Math.sin(Math.PI * u); return Math.min(4, Math.round(v * 4)) === bk; }); }
+  } else { g.fillStyle = FXs.color === 'speed' ? fg1 : styleFor(FXs.color); drawSet(null); }
+  // composite
+  const glow = Math.max(0, FXs.glow + (MV['fx.glow'] || 0));
+  if (glow > 0.001 && 'filter' in ctx) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, glow);
+    ctx.filter = `blur(${Math.max(2, zp * (1 + glow * 2)).toFixed(1)}px)`; ctx.drawImage(PC, 0, 0);
+    if (glow > 1) { ctx.globalAlpha = glow - 1; ctx.filter = `blur(${Math.max(4, zp * 6).toFixed(1)}px)`; ctx.drawImage(PC, 0, 0); }
+    ctx.restore();
   }
-  if (!exporting && seg.kind === 'trans' && m && m.n && showGuide && seg.tr.fo.type !== 'plain' && sel && sel.kind === 'trans' && sel.id === S.clips[seg.i].id) drawGuide(seg, m, t - seg.t0, p, PR);
+  ctx.drawImage(PC, 0, 0);
+  const crt = Math.min(1, Math.max(0, FXs.crt + (MV['fx.crt'] || 0)));
+  if (crt > 0.001) { ctx.save(); ctx.globalAlpha = crt * 0.55; ctx.fillStyle = scanPattern(ctx); const sc = Math.max(1, Math.round(Hh / 540)); ctx.setTransform(sc, 0, 0, sc, 0, 0); ctx.fillRect(0, 0, W / sc, Hh / sc); ctx.restore(); }
+  if (FXs.vignette > 0.001 && !alphaOut) { const gr = ctx.createRadialGradient(W / 2, Hh / 2, Math.min(W, Hh) * 0.25, W / 2, Hh / 2, Math.hypot(W, Hh) / 2); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, `rgba(0,0,0,${FXs.vignette})`); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, Hh); }
+  if (!exporting && seg.kind === 'trans' && m && m.n && showGuide && seg.tr.fo.type !== 'plain' && sel && sel.kind === 'trans' && sel.id === S.clips[seg.i].id) drawGuide(seg, m, driveLT(seg, t - seg.t0), p, PR);
   const h = (seg.kind === 'hold' ? 'Hold · ' : 'Transition · ') + hud + ' · ' + count + ' px';
   if (h !== lastHud) { $('hud').textContent = h; lastHud = h; }
 }
@@ -1273,6 +1689,7 @@ function snippet(i) {
   if (c.type === 'text') return c.text.replace(/\n/g, ' / ') || '(empty)';
   if (c.type === 'cipher') return c.mode + (c.text ? ' · ' + c.text.replace(/\n/g, ' / ') : ' · previous text');
   if (c.type === 'image') return c.image.src === 'sample' ? 'sample star' : 'loaded image';
+  if (c.type === 'shape') return SHAPES[c.shape.kind] + ' · ' + c.shape.size + 'px';
   return 'from: ' + (clipString(i).replace(/\n/g, ' / ') || '(no text)');
 }
 function renderTimeline() {
@@ -1311,12 +1728,30 @@ function renderTimeline() {
   { const endX = (items.filter(it => it.t1 > it.t0).pop() || { x1: 0 }).x1, isSel = sel && sel.kind === 'cam';
     const kd = camKeyTimes().map(k => `<i class="kd${kdOn('cam', S.cam, k, CAM_TOL) ? ' on' : ''}" data-kt="${k}" data-ko="cam" style="left:${Math.max(4, Math.min(endX - 4, k >= total ? endX : tToX(k)))}px" title="Key at ${k.toFixed(2)}s — click to select, drag to move, Delete to remove"></i>`).join('');
     h += `<div class="cambar${isSel ? ' sel' : ''}" data-k="cam" style="left:0;width:${Math.max(40, endX)}px" title="Camera (click to edit, click again to move the playhead)">Camera${kd}</div>`; }
+  const laneOn = !!A.peaks || S.audio.beats === 'grid';
+  GTOP = laneOn ? 184 : 150;
+  if (laneOn) {
+    const endX = (items.filter(it => it.t1 > it.t0).pop() || { x1: 0 }).x1, LH = 32, Y = 146;
+    let svg = `<svg class="alane" style="top:${Y}px;width:${Math.max(40, endX)}px;height:${LH}px" width="${Math.max(40, endX)}" height="${LH}">`;
+    if (A.peaks) {
+      let d = '';
+      for (let x = 0; x <= endX; x += 2) { const t = xToT(x), a = aT(t), v = a >= 0 && a < A.dur ? A.peaks[Math.min(A.peaks.length - 1, Math.floor(a / A.dur * A.peaks.length))] : 0, hh = v * (LH / 2 - 2); d += `M${x},${(LH / 2 - hh).toFixed(1)}V${(LH / 2 + hh + 0.5).toFixed(1)}`; }
+      svg += `<path d="${d}" stroke="var(--muted)" stroke-width="1.2" opacity=".75"/>`;
+    }
+    const bs = beatsBetween(0, total + 1e-6); let bd = '';
+    bs.forEach(b => { const x = tToX(b).toFixed(1); bd += `M${x},0V${LH}`; });
+    svg += `<path d="${bd}" stroke="var(--oil4)" stroke-width="1" opacity=".55"/>`;
+    const lbl = (A.peaks ? (S.audio.name || 'Audio') : 'Beat grid') + ' · ' + (S.audio.beats === 'grid' ? S.audio.bpm + ' BPM grid' : S.audio.beats === 'detected' ? bs.length + ' beats' : 'beats off');
+    svg += `<rect x="1" y="1" width="${lbl.length * 6.2 + 10}" height="13" fill="var(--panel)" opacity=".9"/><text x="6" y="11" class="gleg" fill="var(--muted)">${esc(lbl)}</text></svg>`;
+    h += svg;
+  }
+  if (loopR) { const a = tToX(loopR.t0), b = loopR.t1 >= total ? (items.filter(it => it.t1 > it.t0).pop() || { x1: 0 }).x1 : tToX(loopR.t1); h += `<div class="loopR" style="left:${a}px;width:${Math.max(2, b - a)}px"></div>`; }
   const g = graphSVG(width);
   h += g.svg;
   h += `<div class="phead" id="phead"></div><div class="drop" id="drop" hidden></div>`;
   track.innerHTML = h;
   track.style.width = width + 'px';
-  track.style.height = g.svg ? (GTOP + GH + 6) + 'px' : '';
+  track.style.height = g.svg ? (GTOP + GH + 6) + 'px' : laneOn ? '184px' : '';
   updatePlayhead();
 }
 function updatePlayhead() {
@@ -1434,7 +1869,7 @@ track.addEventListener('dblclick', e => {
 track.addEventListener('pointercancel', endDrag);
 // ---- keyframe editor: selectable diamonds + graph with bezier handles ----
 let kSel = { own: null, keys: [] };
-const GTOP = 150, GH = 150, GPAD = 16;
+let GTOP = 150; const GH = 150, GPAD = 16;
 const GCOL = ['#7fd4ff', '#ff8fb8', '#f2dc8c', '#9df29a', '#c6a4ff', '#ffb36b', '#7ff2de'];
 function keyOwner() { return !sel ? null : sel.kind === 'cam' ? 'cam' : sel.kind === 'trans' ? sel.id : null; }
 function ownObj(own) { if (own === 'cam') return S.cam; if (!own) return null; const i = clipIndex(own); return i >= 0 ? S.clips[i].trans.fo : null; }
@@ -1569,6 +2004,8 @@ function renderInspector() {
     h += `<div class="group"><div class="label"><span>${esc(TYPES[c.type])} · block ${i + 1}</span></div>`;
     h += chk('clip.enabled', 'Enabled (off = skipped in playback)', c.enabled);
     h += rng('clip.hold', 'Hold', c.hold, 0, 10, 0.1);
+    h += sel_('clip.idle.mode', 'While holding', c.idle.mode, [['none', 'Still'], ['wobble', 'Wobble'], ['breathe', 'Breathe'], ['wave', 'Wave'], ['shimmer', 'Shimmer'], ['glitch', 'Glitch']]);
+    if (c.idle.mode !== 'none') h += rng('clip.idle.amt', 'Amount', c.idle.amt, 0, 3, 0.05, 'f2') + rng('clip.idle.speed', 'Speed', c.idle.speed, 0.1, 4, 0.05, 'x');
     if (c.type === 'text') h += `<textarea id="f-clip.text" data-path="clip.text" spellcheck="false" aria-label="Text">${esc(c.text)}</textarea><div class="hint">Line breaks allowed. Latin-1 characters.</div>`;
     if (c.type === 'cipher') {
       h += `<textarea id="f-clip.text" data-path="clip.text" spellcheck="false" aria-label="Source text" placeholder="Empty = encrypt the previous text block">${esc(c.text)}</textarea>`;
@@ -1584,6 +2021,11 @@ function renderInspector() {
       h += rng('clip.image.threshold', 'Threshold', c.image.threshold, 1, 254, 1, 'n');
       h += chk('clip.image.invert', 'Invert (black shapes on white)', c.image.invert);
     }
+    if (c.type === 'shape') {
+      h += sel_('clip.shape.kind', 'Shape', c.shape.kind, Object.entries(SHAPES)) + rng('clip.shape.size', 'Size', c.shape.size, 4, 120, 1, 'px');
+      if (['ring', 'frame', 'cross'].includes(c.shape.kind)) h += rng('clip.shape.thick', 'Thickness', c.shape.thick, 1, 30, 1, 'px');
+      h += rng('clip.shape.rot', 'Rotation', c.shape.rot, -180, 180, 1, 'deg');
+    }
     if (c.type === 'text' || c.type === 'cipher') h += `</div>` + typeGroup(c, i) + `<div class="group">`;
     if (c.type === 'squares' || c.type === 'bigsquare') {
       h += `<div class="hint">Built from the nearest text or cipher block: “${esc(clipString(i).replace(/\n/g, ' / ') || 'none')}”.</div>`;
@@ -1591,6 +2033,11 @@ function renderInspector() {
       if (sqK < 0) {
         h += sel_('clip.sq.uniform', 'Square size', q.uniform ? '1' : '0', [['1', 'Uniform (duplicate to fill)'], ['0', 'Natural ⌊√N⌋']]);
         h += sel_('clip.sq.align', 'Square alignment', q.align, [['bottom', 'Baseline'], ['center', 'Center'], ['top', 'Top']]);
+        h += sel_('clip.sq.sp', 'Spacing', q.sp, [['glyph', 'Follow the letters'], ['even', 'Even gaps (per line)'], ['grid', 'Tidy grid']]);
+        if (q.sp !== 'glyph') h += rng('clip.sq.sgap', 'Gap', q.sgap, 0, 16, 1, 'px');
+        if (q.sp === 'even') h += chk('clip.sq.words', 'Keep word gaps', q.words);
+        if (q.sp === 'grid') h += rng('clip.sq.cols', 'Columns', q.cols, 0, 24, 1, 'auto');
+        if (q.sp !== 'glyph') h += `<div class="hint">Every square sits the same distance from its neighbours, so moves into and out of the big square line up cleanly.</div>`;
       } else h += `<div class="hint">Square size and alignment come from the Squares block ${sqK + 1}, so the squares move into place as whole units.</div>`;
       if (c.type === 'bigsquare') {
         h += sel_('clip.sq.roundUp', 'Grid', q.roundUp ? '1' : '0', [['1', 'Round up (duplicate to fill)'], ['0', 'Round down (overlap)']]);
@@ -1618,7 +2065,18 @@ function renderInspector() {
     const c = S.clips[i], en = S.clips.map((d, k) => d.enabled ? k : -1).filter(k => k > i), j = en[0];
     h += `<div class="group"><div class="label"><span>Transition · ${esc(TYPES[c.type])} ${i + 1} → ${j !== undefined ? esc(TYPES[S.clips[j].type]) + ' ' + (j + 1) : 'end'}</span></div>`;
     const fo = c.trans.fo, tau = curTau(i);
+    h += presetRow();
     h += rng('trans.dur', 'Duration', c.trans.dur, 0.1, 10, 0.1);
+    h += sel_('trans.drive', 'Drive', c.trans.drive, [['time', 'Time'], ['beats', 'Beats (step per beat)'], ['level', 'Audio level']]);
+    if (c.trans.drive === 'beats') {
+      h += rng('trans.beatStep', 'Progress per beat', c.trans.beatStep, 0.01, 1, 0.01, '%') + rng('trans.stepLen', 'Step length (of a beat)', c.trans.stepLen, 0.02, 1, 0.01, '%');
+      h += sel_('trans.stepEase', 'Step easing', c.trans.stepEase, [['snap', 'Snap (fast out)'], ['smooth', 'Smooth'], ['linear', 'Linear']]);
+      const sg = segs.find(s => s.kind === 'trans' && s.i === i), bt = sg ? beatsToFinish(sg) : { need: 0, have: 0 };
+      h += `<div class="hint">${S.audio.beats === 'off' ? 'Beats are off — pick a beat source in the Audio panel.' : `Needs ${bt.need} beats to finish, ${bt.have} fall inside this transition.${bt.have < bt.need ? ' It will jump to the end when it runs out.' : ''}`}</div><div class="btns"><button data-act="fitBeats">Fit duration to beats</button></div>`;
+    } else if (c.trans.drive === 'level') {
+      h += sel_('trans.band', 'Listen to', c.trans.band, [['all', 'Full mix'], ['low', 'Bass'], ['mid', 'Mids'], ['high', 'Highs']]);
+      h += `<div class="hint">${A.buf ? 'Moves faster when the music is louder, stands still in silence. Always finishes by the end of the transition.' : 'Load audio in the side panel first.'}</div>`;
+    }
     h += sel_('trans.fo.type', 'Falloff', fo.type, Object.entries(FO_TYPES).map(([k, v]) => [k, v + ' falloff']));
     if (fo.type === 'plain') {
       h += rng('trans.stagger', 'Stagger spread', c.trans.stagger, 0, 0.95, 0.01, '%');
@@ -1639,10 +2097,14 @@ function renderInspector() {
     h += `<div class="btns">${[['linear', 'Linear'], ['smooth', 'Smooth'], ['in', 'Ease in'], ['out', 'Ease out'], ['hard', 'Hard']].map(([k, v]) => `<button data-ramp="${k}">${v}</button>`).join('')}</div>`;
     h += sel_('trans.fo.rampAxis', 'Ramp applies to', fo.rampAxis ? '1' : '0', [['0', 'Whole move'], ['1', 'Each axis (X, then Y)']]);
     h += `<div class="hint">Maps falloff → progress per pixel. Click to add a point, drag to move, double-click to remove.</div>`;
+    h += sel_('trans.path', 'Path', c.trans.path, [['axis', 'Axis by axis (X, Y)'], ['direct', 'Straight line'], ['arc', 'Arc'], ['spiral', 'Spiral in']]);
+    if (c.trans.path === 'arc') h += rng('trans.bend', 'Bend', c.trans.bend, -2, 2, 0.05, 'f2');
+    if (c.trans.path === 'spiral') h += rng('trans.turns', 'Turns', c.trans.turns, -3, 3, 0.05, 'f2');
+    if (c.trans.path === 'axis') {
     h += sel_('trans.axis', 'Axis order', c.trans.axis, [['x', 'X then Y'], ['y', 'Y then X'], ['alt', 'Alternate'], ['rnd', 'Random']]);
-    h += rng('trans.overlap', 'Axis overlap', c.trans.overlap, 0, 1, 0.05, '%');
+    h += rng('trans.overlap', 'Axis overlap', c.trans.overlap, 0, 1, 0.05, '%'); }
     h += rng('trans.overshoot', 'Overshoot', c.trans.overshoot || 0, 0, 0.5, 0.01, '%');
-    h += sel_('trans.osMode', 'Overshoot style', c.trans.osMode || 'axis', [['axis', 'Per axis (X past & back, then Y)'], ['corner', 'Corner (X past, Y past, then both back)'], ['seq', 'Stepped (X past, Y past, X back, Y back)']]);
+    if (c.trans.path === 'axis') h += sel_('trans.osMode', 'Overshoot style', c.trans.osMode || 'axis', [['axis', 'Per axis (X past & back, then Y)'], ['corner', 'Corner (X past, Y past, then both back)'], ['seq', 'Stepped (X past, Y past, X back, Y back)']]);
     h += sel_('trans.ease', 'Easing', c.trans.ease, [['cubic', 'Cubic in-out'], ['quad', 'Quad in-out'], ['expo', 'Expo in-out'], ['linear', 'Linear']]);
     h += rng('trans.trail', 'Trail amount', c.trans.trail ?? 1, 0, 2, 0.05, '%');
     h += sel_('trans.match', 'Pixel matching', c.trans.match, [['auto', 'Auto'], ['letters', 'Letter by letter'], ['rows', 'By rows'], ['random', 'Random']]);
@@ -1725,6 +2187,20 @@ function renderSide() {
   h += L.pxMode === 'fit' ? rng('look.scale', 'Overall size', L.scale, 0.1, 1.5, 0.01, '%') : rng('look.px', 'Pixel size (at 1080p)', L.px, 1, 40, 0.5, 'px');
   h += chk('look.snap', 'Snap to pixel grid', L.snap) + chk('look.seams', 'Show pixel seams', L.seams);
   h += `</div>`;
+  { const F = L.fx;
+    h += `<div class="group"><div class="label"><span>Style</span></div>`;
+    h += sel_('look.fx.shape', 'Pixel shape', F.shape, Object.entries(FX_SHAPES)) + rng('look.fx.pxScale', 'Pixel scale', F.pxScale, 0.1, 2, 0.01, '%');
+    h += sel_('look.fx.color', 'Colour', F.color, [['solid', 'Solid'], ['hgrad', 'Gradient →'], ['vgrad', 'Gradient ↓'], ['radial', 'Radial'], ['rainbow', 'Rainbow cycle'], ['speed', 'By motion']]);
+    if (F.color !== 'solid') h += `<div class="pair"><label>Second colour<input type="color" data-path="look.fx.fg2" value="${F.fg2}"></label><span></span></div>`;
+    if (F.color === 'rainbow') h += rng('look.fx.cycle', 'Cycle speed', F.cycle, 0, 2, 0.01, 'x');
+    h += rng('look.fx.hue', 'Hue shift', F.hue, -180, 180, 1, 'deg') + rng('look.fx.glow', 'Glow', F.glow, 0, 2, 0.01, '%');
+    h += rng('look.fx.crt', 'Scanlines', F.crt, 0, 1, 0.01, '%') + rng('look.fx.vignette', 'Vignette', F.vignette, 0, 1, 0.01, '%');
+    h += rng('look.fx.jitter', 'Jitter', F.jitter, 0, 4, 0.05, 'f2') + rng('look.fx.wave', 'Wave', F.wave, -6, 6, 0.05, 'f2');
+    if (F.wave) h += rng('look.fx.waveFreq', 'Wave frequency', F.waveFreq, 0.05, 4, 0.05, 'x');
+    h += sel_('look.fx.bgMode', 'Background', F.bgMode, [['solid', 'Solid'], ['vgrad', 'Gradient ↓'], ['radial', 'Radial glow']]);
+    if (F.bgMode !== 'solid') h += `<div class="pair"><label>Background 2<input type="color" data-path="look.fx.bg2" value="${F.bg2}"></label><span></span></div><div class="hint">Background gradients show when the trail is off (the trail paints its own background).</div>`;
+    h += `</div>`; }
+  h += modPanel();
   h += `<div class="group"><div class="label"><span>Work area</span></div>`;
   h += sel_('look.res.mode', 'Resolution', R.mode, [['fit', 'Fill window'], ['fixed', 'Fixed resolution']]);
   if (R.mode === 'fixed') {
@@ -1733,18 +2209,36 @@ function renderSide() {
     h += `<div class="hint">Renders at exactly this size and scales the preview to fit, so the framing never changes with the window.</div>`;
   }
   h += `</div>`;
+  { const Au = S.audio;
+    h += `<div class="group"><div class="label"><span>Audio</span></div>`;
+    h += `<div class="btns"><button data-act="audioLoad">${A.buf ? 'Replace audio' : 'Load audio'}</button>${A.buf ? '<button data-act="audioClear">Remove</button>' : ''}</div>`;
+    if (A.buf) {
+      h += `<div class="hint">${esc(Au.name)} · ${A.dur.toFixed(1)}s${A.bpm ? ' · detected ~' + Math.round(A.bpm) + ' BPM' : ''}</div>`;
+      h += chk('audio.mute', 'Mute', Au.mute) + rng('audio.gain', 'Volume', Au.gain, 0, 2, 0.01, '%') + rng('audio.offset', 'Track starts at', -Au.offset, -30, 30, 0.01, 's').replace('data-path="audio.offset"', 'data-path="audio.offset" data-neg="1"');
+    }
+    h += sel_('audio.beats', 'Beats from', Au.beats, [['detected', 'Detected in audio'], ['grid', 'BPM grid'], ['off', 'Off']]);
+    if (Au.beats === 'detected') h += rng('audio.sens', 'Beat sensitivity', Au.sens, 0, 1, 0.01, '%');
+    if (Au.beats === 'grid') {
+      h += `<div class="pair">${numIn('audio.bpm', 'BPM', Au.bpm, 30, 300)}${numIn('audio.beatOffset', 'First beat (s)', Au.beatOffset, -600, 600)}</div>`;
+      h += `<div class="btns"><button data-act="tap">Tap tempo</button>${A.bpm ? '<button data-act="useBpm">Use detected BPM</button>' : ''}</div>`;
+    }
+    h += `<div class="hint">Set a transition's Drive to Beats or Audio level to move it with the music. Beats show as gold lines under the blocks.</div></div>`; }
   h += `<div class="group"><div class="label"><span>Export</span></div>`;
   h += sel_('export.fmt', 'Format', E.fmt, [['mp4', 'MP4 video'], ['png', 'PNG sequence (.zip)']]);
   h += sel_('export.preset', 'Size', E.preset, Object.entries(EXP_PRESETS).map(([k, v]) => [k, v[2]]));
   if (E.preset === 'custom') h += `<div class="pair">${numIn('export.w', 'Width', E.w, 16, 7680)}${numIn('export.h', 'Height', E.h, 16, 4320)}</div>`;
   h += `<div class="pair">${numIn('export.fps', 'FPS', E.fps, 1, 120)}<label>Length<output id="expLen">${expLenText()}</output></label></div>`;
+  if (E.fmt === 'png') h += chk('export.alpha', 'Transparent background', E.alpha);
   h += `<div class="btns"><button class="primary" data-act="export" id="expBtn">${exporting ? 'Cancel' : 'Export'}</button></div>`;
   h += `<div class="prog" aria-hidden="true"><i id="expProg"></i></div><div class="status" id="expStatus" role="status"></div>`;
   h += `<div class="hint">Renders one full pass of the timeline (ping-pong: there and back), including the trail. The framing matches the work area, scaled to the export size.</div></div>`;
   h += `<div class="group"><div class="label"><span>Scene</span></div>`;
   h += `<input type="text" id="f-scene.name" data-path="scene.name" value="${esc(S.name)}" aria-label="Scene name">`;
   h += `<div class="btns"><button data-act="save">Save JSON</button><button data-act="load">Load JSON</button><button data-act="copy">Copy JSON</button><button data-act="reset">Example scene</button></div>`;
-  h += `<div class="status" id="status" role="status"></div><div class="hint">The current scene is also kept in this browser automatically.</div></div>`;
+  h += `<div class="btns"><button data-act="share">Copy share link</button></div>`;
+  { const lib = libList(); h += `<div class="presetrow"><select id="libPick" aria-label="Saved scenes">${lib.length ? lib.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') : '<option value="">(library empty)</option>'}</select><button data-act="libOpen">Open</button></div>`;
+    h += `<div class="btns"><button data-act="libSave">Save to library</button><button data-act="libDel">Delete</button><button data-act="libNew">New scene</button></div>`; }
+  h += `<div class="status" id="status" role="status"></div><div class="hint">The current scene is also kept in this browser automatically. Share links contain the whole scene (audio not included).</div></div>`;
   $('sideBody').innerHTML = h;
 }
 function expDur() { return S.playback === 'pingpong' ? 2 * total : total; }
@@ -1844,7 +2338,7 @@ function syncInspectorValues() {
 }
 function targetFor(path) {
   const [root, ...rest] = path.split('.');
-  let o = root === 'look' ? S.look : root === 'scene' ? S : root === 'export' ? S.export : root === 'cam' ? S.cam : null;
+  let o = root === 'look' ? S.look : root === 'scene' ? S : root === 'export' ? S.export : root === 'cam' ? S.cam : root === 'audio' ? S.audio : null;
   if (root === 'clip' || root === 'trans') { const c = S.clips[clipIndex(sel.id)]; o = root === 'clip' ? c : c.trans; }
   for (let k = 0; k < rest.length - 1; k++) o = o[rest[k]];
   return [o, rest[rest.length - 1]];
@@ -1865,7 +2359,7 @@ onPanels('input', e => {
 });
 onPanels('change', e => { if (e.target.dataset.commit) applyPath(e.target); });
 function applyPath(el) {
-  const path = el.dataset.path; if (!path || !sel && !/^(look|scene|export|cam)/.test(path)) return;
+  const path = el.dataset.path; if (!path || !sel && !/^(look|scene|export|cam|audio)/.test(path)) return;
   if (path === 'clip.ty.fontPick') {
     if (el.value === '__custom') { fontCustom = true; renderInspector(); const inp = document.getElementById('f-clip.ty.font'); if (inp) { inp.focus(); inp.select(); } return; }
     fontCustom = false; const c = S.clips[clipIndex(sel.id)]; c.ty.font = el.value; c.ty = cleanType(c.ty);
@@ -1874,15 +2368,18 @@ function applyPath(el) {
   }
   const [o, k] = targetFor(path);
   let v = el.type === 'checkbox' ? el.checked : (el.type === 'range' || el.type === 'number') ? parseFloat(el.value) : el.value;
+  if (el.dataset.neg) v = -v;
   if (el.type === 'number' && !isFinite(v)) return;
   if (path === 'clip.sq.uniform' || path === 'clip.sq.roundUp' || path === 'trans.fo.rampAxis') v = v === '1';
   o[k] = v;
-  const out = document.querySelector(`[data-out="${path}"]`); if (out) out.textContent = fmtVal(v, out.dataset.fmt);
+  const out = document.querySelector(`[data-out="${path}"]`); if (out) out.textContent = fmtVal(el.dataset.neg ? -v : v, out.dataset.fmt);
   if (path.startsWith('clip.ty.')) { const c = S.clips[clipIndex(sel.id)]; c.ty = cleanType(c.ty); }
   if (path.startsWith('look.res') || path.startsWith('look.bg')) { S.look = cleanLook(S.look); resize(); }
   if (path.startsWith('export.')) { S.export = cleanExport(S.export); if (path === 'export.preset' && EXP_PRESETS[v] && EXP_PRESETS[v][0]) { S.export.w = EXP_PRESETS[v][0]; S.export.h = EXP_PRESETS[v][1]; } }
   rebuild();
-  if (el.tagName === 'SELECT' && (path === 'clip.mode' || path === 'trans.fo.type' || path === 'clip.ty.font' || path === 'clip.ty.size') || path === 'clip.enabled' || path === 'clip.ownType' || path === 'clip.ty.mono' || path === 'clip.ty.font') renderInspector();
+  if (el.tagName === 'SELECT' && /^(clip|trans)\./.test(path) || path === 'clip.enabled' || path === 'clip.ownType' || path === 'clip.ty.mono' || path === 'clip.ty.font') renderInspector();
+  if (path.startsWith('audio.')) { S.audio = cleanAudio(S.audio); if (path === 'audio.sens') audioDetect(); if (path === 'audio.gain' && A.gain) A.gain.gain.value = S.audio.gain; if (path === 'audio.mute' || path === 'audio.offset') audioRestart(); if (el.tagName === 'SELECT') renderSide(); renderTimeline(); }
+  if (path.startsWith('look.fx.')) { S.look.fx = cleanFx(S.look.fx); if (el.tagName === 'SELECT' || path === 'look.fx.wave') renderSide(); }
   if (path === 'look.pxMode' || path === 'look.res.mode' || path === 'export.preset' || path === 'export.fmt') renderSide();
   const lo = $('expLen'); if (lo) lo.textContent = expLenText();
 }
@@ -2070,7 +2567,22 @@ function loadMuxer() {
     document.head.appendChild(s);
   });
 }
-async function mp4Start(w, h, fps) {
+function audioSegment(dur) { // planar float32 for timeline [0, dur) at the buffer's rate
+  if (!A.buf || S.audio.mute) return null;
+  const b = A.buf, sr = b.sampleRate, ch = Math.min(2, b.numberOfChannels), n = Math.ceil(dur * sr), o = Math.round(S.audio.offset * sr), out = [];
+  for (let c = 0; c < ch; c++) { const src = b.getChannelData(c), d = new Float32Array(n); for (let i = 0; i < n; i++) { const k = i + o; d[i] = k >= 0 && k < src.length ? src[k] * S.audio.gain : 0; } out.push(d); }
+  return { sr, ch, n, data: out };
+}
+async function audioEncCfg(sr, ch) {
+  if (!('AudioEncoder' in window)) return null;
+  for (const [mc, codec] of [['aac', 'mp4a.40.2'], ['opus', 'opus']]) {
+    const cfg = { codec, sampleRate: mc === 'opus' ? 48000 : sr, numberOfChannels: ch, bitrate: 192000 };
+    try { const r = await AudioEncoder.isConfigSupported(cfg); if (r.supported) return [mc, cfg]; } catch (e) { }
+  }
+  return null;
+}
+function resample(seg, to) { if (seg.sr === to) return seg; const r = seg.sr / to, n = Math.floor(seg.n / r), data = seg.data.map(d => { const o = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i * r, k = Math.floor(x), f = x - k; o[i] = d[k] + ((d[k + 1] ?? d[k]) - d[k]) * f; } return o; }); return { sr: to, ch: seg.ch, n, data }; }
+async function mp4Start(w, h, fps, aseg) {
   if (!('VideoEncoder' in window)) throw new Error('This browser has no video encoder (WebCodecs). Use Chrome, Edge or Safari, or export a PNG sequence.');
   const M = await loadMuxer();
   const bitrate = Math.round(Math.min(80e6, Math.max(4e6, w * h * fps * 0.12)));
@@ -2084,11 +2596,14 @@ async function mp4Start(w, h, fps) {
   }
   if (!pick) throw new Error(`This browser can't encode ${w}×${h} video. Try a smaller size or a PNG sequence.`);
   const target = new M.ArrayBufferTarget();
-  const mux = new M.Muxer({ target, video: { codec: pick[0], width: w, height: h, frameRate: fps }, fastStart: 'in-memory' });
+  const acfg = aseg ? await audioEncCfg(aseg.sr, aseg.ch) : null;
+  const mux = new M.Muxer({ target, video: { codec: pick[0], width: w, height: h, frameRate: fps }, audio: acfg ? { codec: acfg[0], numberOfChannels: acfg[1].numberOfChannels, sampleRate: acfg[1].sampleRate } : undefined, fastStart: 'in-memory' });
   const st = { err: null };
   const enc = new VideoEncoder({ output: (chunk, meta) => mux.addVideoChunk(chunk, meta), error: e => { st.err = e; } });
   enc.configure(pick[1]);
-  return { enc, mux, target, st, codec: pick[1].codec };
+  let aenc = null;
+  if (acfg) { aenc = new AudioEncoder({ output: (chunk, meta) => mux.addAudioChunk(chunk, meta), error: e => { st.err = e; } }); aenc.configure(acfg[1]); }
+  return { enc, mux, target, st, codec: pick[1].codec, aenc, acfg, aseg };
 }
 function expUI(frac, msg) {
   const p = $('expProg'); if (p) p.style.width = (frac * 100).toFixed(1) + '%';
@@ -2102,7 +2617,7 @@ async function runExport() {
   const fps = E.fps, dur = expDur(), N = Math.max(1, Math.round(dur * fps)), base = fileBase();
   let V = null, zip = null;
   expUI(0, 'Preparing…');
-  try { if (E.fmt === 'mp4') V = await mp4Start(w, h, fps); else zip = zipWriter(); }
+  try { if (E.fmt === 'mp4') V = await mp4Start(w, h, fps, audioSegment(N / fps)); else zip = zipWriter(); }
   catch (err) { expUI(0, err.message || String(err)); return; }
   exporting = true; expCancel = false; expUI(0, 'Rendering…');
   const wasPlaying = playing, keepT = tl; playing = false; syncPlay();
@@ -2118,7 +2633,7 @@ async function runExport() {
       if (S.playback === 'pingpong' && ft > total) { tt = 2 * total - ft; d = -1 / fps; }
       tt = Math.max(0, Math.min(tt, total - 1e-6));
       draw(tt, i ? d : 0);
-      og.fillStyle = S.look.bg; og.fillRect(0, 0, w, h);
+      if (S.export.alpha && !V) og.clearRect(0, 0, w, h); else paintBg(og, w, h);
       if (FX && S.look.trail.on) og.drawImage(FX.canvas, 0, 0);
       og.drawImage(cv, 0, 0);
       if (V) {
@@ -2134,12 +2649,24 @@ async function runExport() {
       await new Promise(r => setTimeout(r, 0));
     }
     let blob, name;
+    if (V && V.aenc) {
+      expUI(1, 'Encoding audio…');
+      const sg = resample(V.aseg, V.acfg[1].sampleRate), CH = 4096;
+      for (let o = 0; o < sg.n; o += CH) {
+        const n = Math.min(CH, sg.n - o), pl = new Float32Array(n * sg.ch);
+        for (let c = 0; c < sg.ch; c++) pl.set(sg.data[c].subarray(o, o + n), c * n);
+        const ad = new AudioData({ format: 'f32-planar', sampleRate: sg.sr, numberOfFrames: n, numberOfChannels: sg.ch, timestamp: Math.round(o * 1e6 / sg.sr), data: pl });
+        V.aenc.encode(ad); ad.close();
+        if (V.aenc.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 2));
+      }
+      await V.aenc.flush(); V.aenc.close();
+    }
     if (V) { expUI(1, 'Finishing video…'); await V.enc.flush(); V.enc.close(); V.mux.finalize(); blob = new Blob([V.target.buffer], { type: 'video/mp4' }); name = base + '.mp4'; }
     else { blob = zip.finish(); name = base + '_png.zip'; }
     exporting = false; tl = keepT; resize(); if (FX) FX.clear();
     expUI(1, 'Ready: ' + name + ' (' + (blob.size / 1048576).toFixed(1) + ' MB)');
     msg = await saveBlob(blob, name);
-    window.__lastExport = { name, size: blob.size, type: blob.type, codec: V && V.codec };
+    window.__lastExport = { name, size: blob.size, type: blob.type, codec: V && V.codec, audio: V && V.acfg ? V.acfg[0] : null };
   } catch (err) {
     msg = (err && err.message) || String(err);
     try { if (V && V.enc.state !== 'closed') V.enc.close(); } catch (e) { }
@@ -2155,8 +2682,233 @@ $('sideToggle').onclick = () => {
 };
 try { if (localStorage.getItem('pc-side') === '1') { $('app').classList.add('sidecol'); $('sideToggle').textContent = '▸'; } } catch (e) { }
 
+// ================= quality of life =================
+function getDef(path) {
+  const [root, ...rest] = path.split('.');
+  let o = root === 'look' ? defLook() : root === 'export' ? defExport() : root === 'cam' ? defCam() : root === 'trans' ? defTrans() : root === 'audio' ? defAudio() : null;
+  if (root === 'clip') { const c = sel && S.clips[clipIndex(sel.id)]; if (!c) return; o = makeClip(c.type); if (rest[0] === 'sq') o.sq = defSq(); }
+  if (root === 'look' && rest[0] === 'fx') { o = defFx(); rest.shift(); }
+  if (root === 'mod') return;
+  for (const k of rest) { if (o == null) return; o = o[k]; }
+  return o;
+}
+document.addEventListener('dblclick', e => {
+  const el = e.target.closest && e.target.closest('input[type=range]'); if (!el) return;
+  let d;
+  if (el.dataset.fo) d = FO_PARAMS[el.dataset.fo]; else if (el.dataset.cam) d = CAM_PARAMS[el.dataset.cam];
+  else if (el.dataset.path) d = getDef(el.dataset.path); else if (el.dataset.mod) d = modDef(el.dataset.mod, el.dataset.k);
+  if (typeof d !== 'number') return;
+  el.value = d; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+});
+// collapsible groups (remembered per title)
+let COLL = new Set(); try { COLL = new Set(JSON.parse(localStorage.getItem('pc-coll') || '[]')); } catch (e) { }
+function applyCollapse(root) { root.querySelectorAll('.group > .label').forEach(l => { const k = l.textContent.replace(/·.*$/, '').trim(); if (COLL.has(k)) l.parentElement.classList.add('collapsed'); }); }
+onPanels('click', e => {
+  const l = e.target.closest('.group > .label'); if (!l || e.target.closest('button, input, select')) return;
+  const k = l.textContent.replace(/·.*$/, '').trim(), on = l.parentElement.classList.toggle('collapsed');
+  on ? COLL.add(k) : COLL.delete(k); try { localStorage.setItem('pc-coll', JSON.stringify([...COLL])); } catch (e2) { }
+});
+new MutationObserver(() => { applyCollapse($('insp')); applyCollapse($('side')); }).observe($('insp'), { childList: true });
+new MutationObserver(() => applyCollapse($('side'))).observe($('sideBody'), { childList: true });
+// internal clipboard for blocks and transition settings
+let CLIP = null;
+function copySel() {
+  const i = sel ? clipIndex(sel.id) : -1; if (i < 0) return;
+  if (sel.kind === 'trans') { CLIP = { kind: 'trans', data: JSON.parse(JSON.stringify(S.clips[i].trans)) }; status('Transition settings copied.'); }
+  else if (sel.kind === 'clip') { CLIP = { kind: 'clip', data: JSON.parse(JSON.stringify(S.clips[i])) }; status('Block copied.'); }
+}
+function pasteSel() {
+  if (!CLIP) return false;
+  const i = sel ? clipIndex(sel.id) : -1;
+  if (CLIP.kind === 'trans') {
+    if (i < 0 || sel.kind !== 'trans') { status('Select a transition to paste its settings onto.'); return true; }
+    const c = S.clips[i], keepDur = c.trans.dur; c.trans = defTrans(JSON.parse(JSON.stringify(CLIP.data))); c.trans.dur = keepDur;
+    rebuild(); renderInspector(); status('Transition settings pasted.'); return true;
+  }
+  const d = JSON.parse(JSON.stringify(CLIP.data)); d.id = newId();
+  const at = i >= 0 ? i + 1 : S.clips.length; S.clips.splice(at, 0, d); sel = { kind: 'clip', id: d.id };
+  rebuild(); renderInspector(); status('Block pasted.'); return true;
+}
+// transition presets
+const TR_PRESETS = {
+  'Default': {},
+  'Clean wipe': { stagger: 0.55, order: 'sweep', ease: 'cubic', overshoot: 0, fo: { type: 'linear', angle: 0, soft: 0.35 } },
+  'Bouncy': { stagger: 0.5, overshoot: 0.25, osMode: 'corner', ease: 'cubic', order: 'rnd' },
+  'Stepped snap': { stagger: 0.4, overshoot: 0.15, osMode: 'seq', ease: 'expo', axis: 'x', overlap: 0 },
+  'Center burst': { ease: 'expo', fo: { type: 'spherical', cx: 0, cy: 0, soft: 0.5 } },
+  'Box in': { ease: 'cubic', fo: { type: 'box', cx: 0, cy: 0, soft: 0.4, invert: true } },
+  'Scatter': { stagger: 0.8, order: 'rnd', match: 'random', ease: 'quad', overlap: 0.6 },
+  'Rain': { stagger: 0.7, order: 'down', axis: 'y', ease: 'quad' },
+  'Diagonal sweep': { ease: 'cubic', overshoot: 0.08, fo: { type: 'linear', angle: 45, soft: 0.45, jitter: 0.15 } },
+};
+let USER_PRESETS = {}; try { USER_PRESETS = JSON.parse(localStorage.getItem('pc-presets') || '{}'); } catch (e) { }
+function presetRow() {
+  const names = Object.keys(TR_PRESETS).map(k => ['b:' + k, k]).concat(Object.keys(USER_PRESETS).map(k => ['u:' + k, '★ ' + k]));
+  return `<div class="presetrow"><select id="presetPick" aria-label="Transition preset">${names.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select><button data-act="presetApply">Apply</button></div>
+  <div class="btns"><button data-act="presetSave">Save as preset</button><button data-act="presetDel">Delete preset</button><button data-act="trCopy">Copy</button><button data-act="trPaste">Paste</button><button data-act="trAll">Apply to all</button></div>`;
+}
+function applyPreset(v) {
+  const i = sel ? clipIndex(sel.id) : -1; if (i < 0) return;
+  const c = S.clips[i], src = v.startsWith('u:') ? USER_PRESETS[v.slice(2)] : TR_PRESETS[v.slice(2)]; if (!src) return;
+  const keep = { dur: c.trans.dur, seed: c.trans.seed };
+  c.trans = defTrans(Object.assign(JSON.parse(JSON.stringify(src)), keep));
+  rebuild(); renderInspector(); status('Applied preset ' + v.slice(2) + '.');
+}
+onPanels('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, i = sel ? clipIndex(sel.id) : -1;
+  if (act === 'presetApply') applyPreset($('presetPick').value);
+  else if (act === 'presetSave' && i >= 0) {
+    const name = (prompt('Preset name', 'My transition') || '').trim().slice(0, 40); if (!name) return;
+    const t = JSON.parse(JSON.stringify(S.clips[i].trans)); delete t.dur; delete t.seed;
+    USER_PRESETS[name] = t; try { localStorage.setItem('pc-presets', JSON.stringify(USER_PRESETS)); } catch (e2) { }
+    renderInspector(); status('Saved preset ' + name + '.');
+  } else if (act === 'presetDel') {
+    const v = $('presetPick').value; if (!v.startsWith('u:')) { status('Built-in presets can\'t be deleted.'); return; }
+    delete USER_PRESETS[v.slice(2)]; try { localStorage.setItem('pc-presets', JSON.stringify(USER_PRESETS)); } catch (e2) { }
+    renderInspector(); status('Preset deleted.');
+  } else if (act === 'trCopy') copySel();
+  else if (act === 'trPaste') pasteSel();
+  else if (act === 'trAll' && i >= 0) {
+    const src = S.clips[i].trans;
+    S.clips.forEach(d => { if (d !== S.clips[i]) { const dur = d.trans.dur, seed = d.trans.seed; d.trans = defTrans(JSON.parse(JSON.stringify(src))); d.trans.dur = dur; d.trans.seed = seed; } });
+    rebuild(); status('Applied to all transitions.');
+  }
+});
+// loop the selected block / transition
+let loopR = null;
+function selRange() {
+  const i = sel ? clipIndex(sel.id) : -1; if (i < 0) return null;
+  const it = items.find(it => it.i === i && (sel.kind === 'trans' ? it.kind === 'trans' : it.kind === 'clip'));
+  return it && it.t1 > it.t0 ? { t0: it.t0, t1: it.t1 } : null;
+}
+function toggleLoop() {
+  if (loopR) loopR = null; else { loopR = selRange(); if (!loopR) { status('Select a block or transition to loop it.'); } else { tl = loopR.t0; playing = true; syncPlay(); if (FX) FX.clear(); } }
+  $('loopSel').classList.toggle('on', !!loopR); renderTimeline();
+}
+$('loopSel').onclick = toggleLoop;
+$('undo').onclick = () => histGo(-1); $('redo').onclick = () => histGo(1);
+$('helpBtn').onclick = () => { $('help').hidden = false; }; $('helpClose').onclick = () => { $('help').hidden = true; };
+$('help').addEventListener('click', e => { if (e.target === $('help')) $('help').hidden = true; });
+function stepTo(t) { playing = false; syncPlay(); tl = Math.max(0, Math.min(total, t)); updatePlayhead(); }
+function jumpBlock(d) {
+  const starts = items.filter(it => it.kind === 'clip' && it.t1 > it.t0).map(it => it.t0);
+  const k = d > 0 ? starts.find(t => t > tl + 1e-3) : [...starts].reverse().find(t => t < tl - 1e-3);
+  if (k !== undefined) stepTo(k + 1e-4);
+}
+
+onPanels('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'audioLoad') { actx(); $('audioFile').click(); }
+  else if (act === 'audioClear') audioClear();
+  else if (act === 'useBpm' && A.bpm) { S.audio.bpm = Math.round(A.bpm * 10) / 10; const bs = A.beats; S.audio.beatOffset = bs.length ? Math.round((bs[0] - S.audio.offset) * 1000) / 1000 : 0; renderSide(); renderTimeline(); scheduleSave(); }
+  else if (act === 'tap') {
+    const now = performance.now() / 1000; A.taps = A.taps.filter(x => now - x < 3).concat([now]);
+    if (A.taps.length >= 2) { const d = []; for (let k = 1; k < A.taps.length; k++) d.push(A.taps[k] - A.taps[k - 1]); d.sort((x, y) => x - y); const md = d[Math.floor(d.length / 2)]; S.audio.bpm = Math.round(600 / md) / 10; S.audio.beatOffset = Math.round(tl * 1000) / 1000; scheduleSave(); renderTimeline(); const inp = document.querySelector('[data-path="audio.bpm"]'); if (inp) inp.value = S.audio.bpm; }
+    status(A.taps.length < 2 ? 'Keep tapping…' : 'Tempo ' + S.audio.bpm + ' BPM');
+  } else if (act === 'fitBeats' && sel) fitDurToBeats(clipIndex(sel.id));
+});
+$('audioFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { await audioLoadBytes(await f.arrayBuffer(), f.name, true); } catch (err) { status('Could not read that audio file: ' + (err.message || err)); }
+});
+stage.addEventListener('drop', async e => { const f = e.dataTransfer.files[0]; if (f && /^audio\//.test(f.type)) { e.preventDefault(); e.stopImmediatePropagation(); try { await audioLoadBytes(await f.arrayBuffer(), f.name, true); } catch (err) { status('Could not read that audio file.'); } } }, true);
+
+// ---- share links & library ----
+const b64u = u8 => { let s2 = ''; for (let i = 0; i < u8.length; i += 0x8000) s2 += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s2).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const ub64 = str => { const b = atob(str.replace(/-/g, '+').replace(/_/g, '/')); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+async function zipText(txt) { const cs = new Blob([txt]).stream().pipeThrough(new CompressionStream('deflate-raw')); return new Uint8Array(await new Response(cs).arrayBuffer()); }
+async function unzipText(u8) { const ds = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return await new Response(ds).text(); }
+async function shareLink() {
+  try {
+    const sc = JSON.parse(JSON.stringify(S)); sc.clips.forEach(c => { if (c.type === 'image' && c.image.src !== 'sample' && c.image.src.length > 60000) c.image.src = 'sample'; });
+    const url = location.href.split('#')[0] + '#s=' + b64u(await zipText(JSON.stringify(sc)));
+    await navigator.clipboard.writeText(url); status('Share link copied (' + Math.round(url.length / 1024) + ' KB).');
+  } catch (e) { status('Could not copy the link here: ' + (e.message || e)); }
+}
+async function loadFromHash() {
+  const m = location.hash.match(/[#&]s=([\w-]+)/); if (!m) return;
+  try { S = normalizeScene(JSON.parse(await unzipText(ub64(m[1])))); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); renderSide(); resize(); fitZoom(); status('Loaded the shared scene.'); }
+  catch (e) { status('That share link could not be read.'); }
+}
+const LIBK = 'pc-library';
+function libGet() { try { return JSON.parse(localStorage.getItem(LIBK) || '{}'); } catch (e) { return {}; } }
+function libList() { return Object.keys(libGet()).sort((a, b) => a.localeCompare(b)); }
+onPanels('click', async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return; const act = b.dataset.act;
+  if (act === 'share') shareLink();
+  else if (act === 'libSave') {
+    const name = (prompt('Save scene as', S.name || 'Untitled') || '').trim().slice(0, 80); if (!name) return;
+    const L = libGet(); S.name = name; L[name] = JSON.parse(JSON.stringify(S));
+    try { localStorage.setItem(LIBK, JSON.stringify(L)); status('Saved “' + name + '” to the library.'); } catch (err) { status('Library is full — remove some scenes or images.'); }
+    renderSide();
+  } else if (act === 'libOpen') {
+    const n = $('libPick').value, L = libGet(); if (!L[n]) return;
+    S = normalizeScene(L[n]); sel = null; tl = 0; LC.clear(); MC.clear(); rebuild(); renderInspector(); renderSide(); resize(); fitZoom(); status('Opened “' + n + '”.');
+  } else if (act === 'libDel') {
+    const n = $('libPick').value, L = libGet(); if (!L[n] || !confirm('Delete “' + n + '” from the library?')) return;
+    delete L[n]; localStorage.setItem(LIBK, JSON.stringify(L)); renderSide(); status('Deleted “' + n + '”.');
+  } else if (act === 'libNew') {
+    S = normalizeScene({ name: 'Untitled scene', clips: [makeClip('text', { text: 'HELLO' }), makeClip('squares'), makeClip('bigsquare')] }); sel = null; tl = 0; rebuild(); renderInspector(); renderSide(); resize(); fitZoom(); status('New scene.');
+  }
+});
+
+// ---- modulator panel ----
+function modDef(i, k) { if (k === 'amount') return 0; const d = defMod(); return typeof d[k] === 'number' ? d[k] : undefined; }
+function modPanel() {
+  let h = `<div class="group"><div class="label"><span>Modulators</span></div>`;
+  (S.mods || []).forEach((m, i) => {
+    const T = MOD_TARGETS[m.target], sp = T[1];
+    h += `<div class="modcard${m.on ? '' : ' off'}"><div class="modhead"><label class="check"><input type="checkbox" data-mod="${i}" data-k="on"${m.on ? ' checked' : ''}> ${i + 1}</label><meter id="mm-${i}" min="-1" max="1" value="0"></meter><button data-modact="del" data-i="${i}" aria-label="Remove modulator">✕</button></div>`;
+    h += `<div class="row"><label>Source</label><select data-mod="${i}" data-k="src">${Object.entries(MOD_SRC).map(([k, v]) => opt(k, m.src, v)).join('')}</select></div>`;
+    h += `<div class="row"><label>Target</label><select data-mod="${i}" data-k="target">${Object.entries(MOD_TARGETS).map(([k, v]) => opt(k, m.target, v[0])).join('')}</select></div>`;
+    h += `<div class="row"><label>Amount</label><output data-mout="${i}">${fmtVal(m.amount, T[2])}</output><input type="range" data-mod="${i}" data-k="amount" min="${-sp}" max="${sp}" step="${sp / 200}" value="${m.amount}"></div>`;
+    if (m.src === 'lfo') h += `<div class="row"><label>Shape</label><select data-mod="${i}" data-k="shape">${[['sine', 'Sine'], ['tri', 'Triangle'], ['square', 'Square'], ['saw', 'Saw up'], ['ramp', 'Saw down']].map(([k, v]) => opt(k, m.shape, v)).join('')}</select></div>`;
+    if (m.src === 'lfo' || m.src === 'noise') {
+      h += `<div class="row"><label>${m.sync ? 'Cycles per beat' : 'Rate (Hz)'}</label><output>${m.rate}</output><input type="range" data-mod="${i}" data-k="rate" min="0.01" max="${m.sync ? 4 : 8}" step="0.01" value="${m.rate}"></div>`;
+      h += `<label class="check"><input type="checkbox" data-mod="${i}" data-k="sync"${m.sync ? ' checked' : ''}> Sync to beats</label><label class="check"><input type="checkbox" data-mod="${i}" data-k="bipolar"${m.bipolar ? ' checked' : ''}> Swing both ways (±)</label>`;
+    }
+    if (m.src === 'audio') h += `<div class="row"><label>Band</label><select data-mod="${i}" data-k="band">${[['all', 'Full mix'], ['low', 'Bass'], ['mid', 'Mids'], ['high', 'Highs']].map(([k, v]) => opt(k, m.band, v)).join('')}</select></div><div class="row"><label>Smoothing</label><output>${m.smooth}s</output><input type="range" data-mod="${i}" data-k="smooth" min="0" max="0.5" step="0.01" value="${m.smooth}"></div>`;
+    if (m.src === 'beat' || m.src === 'micbeat') h += `<div class="row"><label>Decay</label><output>${m.decay}s</output><input type="range" data-mod="${i}" data-k="decay" min="0.02" max="1.5" step="0.01" value="${m.decay}"></div>`;
+    if ((m.src === 'mic' || m.src === 'micbeat') && !MIC.on) h += `<div class="btns"><button data-act="micOn">Turn on microphone</button></div>`;
+    if (m.src === 'audio' && !A.buf) h += `<div class="hint">Load audio in the Audio panel.</div>`;
+    h += `</div>`;
+  });
+  h += `<div class="btns"><button data-modact="add">+ Add modulator</button></div><div class="hint">Each modulator adds a moving signal on top of a setting. Stack several on one target. Double-click a slider to reset it.</div></div>`;
+  return h;
+}
+onPanels('input', e => {
+  const el = e.target; if (el.dataset.mod === undefined) return;
+  const m = S.mods[+el.dataset.mod], k = el.dataset.k; if (!m) return;
+  m[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? parseFloat(el.value) : el.value;
+  if (k === 'amount') { const o = document.querySelector(`[data-mout="${el.dataset.mod}"]`); if (o) o.textContent = fmtVal(m.amount, MOD_TARGETS[m.target][2]); }
+  else if (el.type === 'range') { const o = el.previousElementSibling; if (o && o.tagName === 'OUTPUT') o.textContent = m[k] + (k === 'smooth' || k === 'decay' ? 's' : ''); }
+  if (k === 'target') m.amount = MOD_TARGETS[m.target][1] * 0.25;
+  if (el.tagName === 'SELECT' || k === 'sync' || k === 'on') renderSide();
+  if ((m.src === 'mic' || m.src === 'micbeat') && k === 'src') micEnable().then(renderSide);
+  scheduleSave();
+});
+onPanels('click', e => {
+  const b = e.target.closest('[data-modact]'); if (b) {
+    if (b.dataset.modact === 'add') { S.mods.push(defMod()); }
+    else if (b.dataset.modact === 'del') S.mods.splice(+b.dataset.i, 1);
+    renderSide(); scheduleSave(); return;
+  }
+  const a = e.target.closest('[data-act="micOn"]'); if (a) micEnable().then(renderSide);
+});
+// live / fullscreen view
+function toggleLive() {
+  const on = !document.fullscreenElement;
+  if (on) { (stage.requestFullscreen ? stage.requestFullscreen() : Promise.reject()).catch(() => stage.classList.toggle('live')); stage.classList.add('live'); }
+  else document.exitFullscreen();
+}
+document.addEventListener('fullscreenchange', () => { stage.classList.toggle('live', !!document.fullscreenElement); setTimeout(resize, 50); });
+$('liveBtn').onclick = toggleLive;
+function modMeters() { (S.mods || []).forEach((m, i) => { const el = document.getElementById('mm-' + i); if (el) el.value = Math.max(-1, Math.min(1, (m.last || 0) / (MOD_TARGETS[m.target][1] || 1))); }); }
+
 // ================= transport =================
-let drawnT = 0, dir = 1;
+let drawnT = 0, dir = 1, frameN = 0;
 let playing = !matchMedia('(prefers-reduced-motion: reduce)').matches, tl = 0, last = performance.now();
 function syncPlay() { $('play').textContent = playing ? 'Pause' : 'Play'; }
 $('play').onclick = () => { if (!playing && tl >= total && S.playback !== 'pingpong') { tl = 0; if (FX) FX.clear(); } playing = !playing; syncPlay(); };
@@ -2167,16 +2919,32 @@ function fitZoom() { const w = $('tlscroll').clientWidth - 90; $('zoom').value =
 $('fit').onclick = fitZoom;
 window.addEventListener('keydown', e => {
   if (e.target.closest('textarea, input, select')) return;
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod && k === 'z') { e.preventDefault(); histGo(e.shiftKey ? 1 : -1); return; }
+  if (mod && k === 'y') { e.preventDefault(); histGo(1); return; }
+  if (mod && k === 'c' && sel && !window.getSelection().toString()) { copySel(); return; }
+  if (mod && k === 'v' && CLIP) { if (pasteSel()) e.preventDefault(); return; }
+  if (mod && k === 'd' && sel && sel.kind === 'clip') { e.preventDefault(); const b = document.createElement('button'); b.dataset.act = 'dup'; $('insp').appendChild(b); b.click(); b.remove(); return; }
+  if (mod) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); const st = e.shiftKey ? 1 : 1 / (S.export.fps || 30); stepTo(tl + (e.key === 'ArrowRight' ? st : -st)); return; }
+  if (e.key === 'Home') { e.preventDefault(); stepTo(0); return; }
+  if (e.key === 'End') { e.preventDefault(); stepTo(total - 1e-4); return; }
+  if (e.key === '[' || e.key === ']') { jumpBlock(e.key === ']' ? 1 : -1); return; }
+  if (k === 'l') { toggleLoop(); return; }
+  if (k === 'f' && typeof toggleLive === 'function') { toggleLive(); return; }
+  if (e.key === '?') { $('help').hidden = !$('help').hidden; return; }
+  if (e.key === 'Escape' && !$('help').hidden) { $('help').hidden = true; return; }
   if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
   else if ((e.key === 'Delete' || e.key === 'Backspace') && kSel.keys.length && kSel.own === keyOwner()) { e.preventDefault(); deleteSelKeys(); }
   else if (e.key === 'Escape' && kSel.keys.length) { kSel.keys = []; renderTimeline(); }
+  else if (e.key === 'Escape' && sel) { sel = null; renderTimeline(); renderInspector(); }
   else if ((e.key === 'Delete' || e.key === 'Backspace') && sel && sel.kind === 'clip') { e.preventDefault(); const b = document.createElement('button'); b.dataset.act = 'del'; $('insp').appendChild(b); b.click(); b.remove(); }
 });
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const prevT = tl;
   if (playing && total > 0) {
-    tl += dt * dir;
+    if (audioActive() && dir > 0) tl = audioClock(); else tl += dt * dir;
     if (S.playback === 'pingpong') {
       if (tl >= total) { tl = Math.max(0, 2 * total - tl); dir = -1; }
       else if (tl <= 0) { tl = Math.min(total, -tl); dir = 1; }
@@ -2184,11 +2952,13 @@ function frame(now) {
       if (S.playback === 'loop') { tl %= total; if (FX) FX.clear(); }
       else { tl = total; playing = false; syncPlay(); }
     }
+    if (loopR && (tl >= loopR.t1 || tl < loopR.t0 - 1e-6)) { tl = loopR.t0; dir = 1; if (FX) FX.clear(); }
     updatePlayhead();
   }
   const delta = playing ? dt * dir : Math.max(-0.1, Math.min(0.1, tl - drawnT));
   drawnT = tl;
-  if (!exporting) { draw(Math.min(tl, Math.max(0, total - 1e-6)), delta); syncFoUI(false); syncCamUI(false); }
+  audioSync(); micTick();
+  if (!exporting) { draw(Math.min(tl, Math.max(0, total - 1e-6)), delta); syncFoUI(false); syncCamUI(false); if ((frameN = (frameN + 1) % 4) === 0) modMeters(); }
   requestAnimationFrame(frame);
 }
 
@@ -2200,6 +2970,8 @@ fitZoom();
 renderInspector();
 renderSide();
 syncPlay();
+histPush();
+loadFromHash();
 requestAnimationFrame(frame);
 </script>
 
